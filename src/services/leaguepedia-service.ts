@@ -1,4 +1,3 @@
-
 /**
  * Service pour interagir avec l'API Leaguepedia
  */
@@ -45,7 +44,7 @@ function formatTeamLinkName(teamName: string): string {
   const specialCases: Record<string, string> = {
     'g2': 'g2',
     'fnatic': 'fnc',
-    'rogue': 'rge', // Corriger: Utiliser 'rge' pour Rogue
+    'rogue': 'rogue_(european_team)', // Corriger: Utiliser nom complet pour Rogue
     'karminecorp': 'karmine_corp', // Correction pour Karmine Corp
     'karmineorp': 'karmine_corp', // Alternative pour Karmine Corp
     'kcorp': 'karmine_corp', // Alternative pour K-Corp
@@ -154,6 +153,13 @@ function generatePossibleFilenames(variant: string): string[] {
   if (variant.includes("_team)")) {
     formats.push(`${variant.replace(/\)$/, "")}logo_square.png)`);
     formats.push(`${variant.replace(/\)$/, "")}logo_profile.png)`);
+    
+    // Ajouter des variantes sans parenthèses
+    const baseNameWithoutParentheses = variant.replace(/\([^)]*\)/g, '').trim();
+    if (baseNameWithoutParentheses) {
+      formats.push(`${baseNameWithoutParentheses}logo_square.png`);
+      formats.push(`${baseNameWithoutParentheses}_logo_square.png`);
+    }
   }
   
   return formats;
@@ -178,7 +184,9 @@ export async function getTeamLogoUrl(teamName: string): Promise<string | null> {
     const directMappings: Record<string, string> = {
       "Karmine Corp": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png?format=original",
       "Rogue": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original",
-      "Talon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original"
+      "Talon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original",
+      "Rogue (European Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original",
+      "TALON (Hong Kong Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original"
     };
     
     if (directMappings[teamName]) {
