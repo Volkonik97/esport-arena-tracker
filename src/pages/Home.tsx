@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
@@ -118,8 +119,8 @@ export default function Home() {
         }
       ] as [MatchTeam, MatchTeam],
       competition: {
-        id: match.Tournament,
-        name: match.Tournament,
+        id: match.Tournament || "Unknown",
+        name: match.Tournament || "Unknown",
       },
       date: match.DateTime,
       status: matchStatus

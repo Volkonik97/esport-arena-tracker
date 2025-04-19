@@ -3,15 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 export interface LeagueMatch {
-  Tournament: string;
-  Region: string;
+  Tournament?: string;
+  Region?: string;
   DateTime: string;
   Team1: string;
   Team2: string;
   Winner?: string;
   Team1Score?: number;
   Team2Score?: number;
-  League: string;
+  League?: string;
+  OverviewPage?: string;
+  BestOf?: number;
 }
 
 interface MatchesQueryResult {
@@ -21,27 +23,19 @@ interface MatchesQueryResult {
   isFallback: boolean;
 }
 
-export function useUpcomingMatches(limit = 10, tournamentFilter?: string): MatchesQueryResult {
+export function useUpcomingMatches(limit = 5, tournamentFilter?: string): MatchesQueryResult {
   const result = useQuery({
     queryKey: ['upcoming-matches', limit, tournamentFilter],
     queryFn: async () => {
       try {
         console.log("Fetching upcoming matches with tournament filter:", tournamentFilter);
-        let whereConditions = [
-          `SG.DateTime_UTC >= '${new Date().toISOString()}'`,
-          'T.IsQualifier=0'
-        ];
-        
-        if (tournamentFilter) {
-          whereConditions.push(`T.Name = '${tournamentFilter}'`);
-        }
         
         const { data, error } = await supabase.functions.invoke('leaguepedia', {
           body: {
             params: {
-              where: whereConditions,
+              upcomingMatches: true,
               limit: limit.toString(),
-              order_by: "SG.DateTime_UTC ASC"
+              tournamentFilter
             }
           }
         });
@@ -53,7 +47,7 @@ export function useUpcomingMatches(limit = 10, tournamentFilter?: string): Match
         
         if (data?.cargoquery && Array.isArray(data.cargoquery)) {
           const matches = data.cargoquery.map(item => item.title as LeagueMatch);
-          console.log("API returned matches:", matches.length);
+          console.log("API returned upcoming matches:", matches.length);
           return { matches, isFallback: false };
         }
 

@@ -17,8 +17,8 @@ export default function Matches() {
   // Filter matches based on search and competition
   const filteredMatches = matches.filter(match => {
     const matchesSearch = 
-      match.Team1.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      match.Team2.toLowerCase().includes(searchTerm.toLowerCase());
+      match.Team1?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      match.Team2?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCompetition = selectedCompetition === "Tous" || match.Tournament === selectedCompetition;
     
@@ -26,7 +26,7 @@ export default function Matches() {
   });
 
   // Get unique competitions from all matches
-  const competitions = ["Tous", ...new Set(matches.map(m => m.Tournament))];
+  const competitions = ["Tous", ...new Set(matches.map(m => m.Tournament).filter(Boolean))];
   
   return (
     <Layout>
@@ -92,8 +92,8 @@ export default function Matches() {
                   { id: match.Team2, name: match.Team2 }
                 ]}
                 competition={{
-                  id: match.Tournament,
-                  name: match.Tournament
+                  id: match.Tournament || "Unknown",
+                  name: match.Tournament || "Unknown"
                 }}
                 date={match.DateTime}
                 status="upcoming"

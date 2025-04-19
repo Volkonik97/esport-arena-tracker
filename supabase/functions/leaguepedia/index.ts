@@ -254,7 +254,29 @@ serve(async (req) => {
       });
     }
 
-    // 5) Sinon, on gère la requête de matchs
+    // 5) Si on veut les prochains matchs (format demandé par l'utilisateur)
+    if (params.upcomingMatches === true) {
+      console.log("[LP] Fetching upcoming matches with new format");
+      const matchQs = new URLSearchParams({
+        action: "cargoquery",
+        format: "json",
+        formatversion: "2",
+        tables: "MatchScheduleGame=MSG,MatchSchedule=MS",
+        join_on: "MSG.MatchId=MS.MatchId",
+        fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC,MS.Tournament,MS.BestOf",
+        where: "MS.DateTime_UTC>NOW()",
+        order_by: "MS.DateTime_UTC",
+        limit: params.limit || "5"
+      });
+
+      const json = await lpFetch(matchQs);
+      return new Response(JSON.stringify(json), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // 6) Sinon, on gère la requête de matchs avec l'ancienne format
     const {
       action    = "cargoquery",
       format    = "json",
