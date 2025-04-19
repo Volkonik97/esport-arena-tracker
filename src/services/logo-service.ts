@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getTeamLogoUrl } from "./leaguepedia-service";
 import { getLeagueLogo, isKnownLeague } from "@/config/league-logos";
