@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const LEAGUEPEDIA_API_URL = "https://lol.fandom.com/api.php";
@@ -34,14 +33,16 @@ function formatTeamLinkName(teamName: string): string {
   const specialCases: Record<string, string> = {
     'g2': 'g2',
     'fnatic': 'fnc',
-    'rogue': 'rge',
-    'karmineorp': 'kcorp',
+    'rogue': 'rogue_(european_team)', // Correction pour Rogue
+    'karmineorp': 'karmine_corp', // Correction pour Karmine Corp
+    'kcorp': 'karmine_corp', // Correction pour K-Corp
     'excellondon': 'xl',
     'madlions': 'mad',
     'teamliquid': 'tl',
     'cloud9': 'c9',
     'skgaming': 'sk',
-    '100thieves': '100'
+    '100thieves': '100',
+    'talon': 'talon_(hong_kong_team)' // Correction pour Talon
   };
   
   for (const [key, value] of Object.entries(specialCases)) {
@@ -102,6 +103,30 @@ serve(async (req) => {
   try {
     // 4) Si on demande les infos d'une équipe
     if (typeof params.teamName === "string") {
+      // Cas spéciaux pour certaines équipes problématiques
+      const directMappings: Record<string, string> = {
+        "Karmine Corp": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png?format=original",
+        "Rogue": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original",
+        "Talon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original"
+      };
+      
+      if (directMappings[params.teamName]) {
+        console.log(`[LP] Direct URL mapping for ${params.teamName}`);
+        return new Response(JSON.stringify({
+          cargoquery: [{
+            title: {
+              Name: params.teamName,
+              Image: "",
+              logoUrl: directMappings[params.teamName],
+              Short: formatTeamLinkName(params.teamName)
+            }
+          }]
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      
       const teamQs = new URLSearchParams({
         action:        "cargoquery",
         format:        "json",
@@ -129,7 +154,10 @@ serve(async (req) => {
         const possibleFiles = [
           `${teamLink}logo_square.png`,
           `${teamLink}_logo_square.png`,
-          `${teamLink}logo.png`
+          `${teamLink}logo.png`,
+          // Formats spéciaux pour les équipes avec régions
+          `${teamLink}_(European_Team)logo_square.png`,
+          `${teamLink}_(Hong_Kong_Team)logo_profile.png`
         ];
         
         for (const filename of possibleFiles) {

@@ -45,8 +45,10 @@ function formatTeamLinkName(teamName: string): string {
   const specialCases: Record<string, string> = {
     'g2': 'g2',
     'fnatic': 'fnc',
-    'rogue': 'rge',
-    'karmineorp': 'kcorp',
+    'rogue': 'rge', // Corriger: Utiliser 'rge' pour Rogue
+    'karminecorp': 'karmine_corp', // Correction pour Karmine Corp
+    'karmineorp': 'karmine_corp', // Alternative pour Karmine Corp
+    'kcorp': 'karmine_corp', // Alternative pour K-Corp
     'excellondon': 'xl',
     'madlions': 'mad',
     'teamliquid': 'tl',
@@ -68,7 +70,8 @@ function formatTeamLinkName(teamName: string): string {
     '100thieves': '100',
     'flyquest': 'fly',
     'evilgeniuses': 'eg',
-    'nrg': 'nrg'
+    'nrg': 'nrg',
+    'talon': 'talon_(hong_kong_team)', // Correction pour Talon
   };
   
   // Vérifier si nous avons un cas spécial
@@ -94,6 +97,11 @@ function generateTeamNameVariants(teamName: string): string[] {
     // Format teamLink (prioritaire selon la convention Leaguepedia)
     teamLinkName,
     
+    // Cas spécifiques pour certaines équipes
+    teamName === "Karmine Corp" ? "karmine_corp" : null,
+    teamName === "Rogue" ? "rogue_(european_team)" : null,
+    teamName === "Talon" ? "talon_(hong_kong_team)" : null,
+    
     // Variantes du nom complet
     baseName,
     baseName.toLowerCase(),
@@ -108,14 +116,14 @@ function generateTeamNameVariants(teamName: string): string[] {
     teamName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(),
     baseNameWithoutParentheses.toUpperCase(),
     baseNameWithoutParentheses.toLowerCase()
-  ];
+  ].filter(Boolean) as string[]; // Filtrer les valeurs null
 }
 
 /**
  * Génère différents formats de noms de fichiers pour un nom d'équipe
  */
 function generatePossibleFilenames(variant: string): string[] {
-  return [
+  const formats = [
     // Format selon la convention Leaguepedia (prioritaire)
     `${variant}logo_square.png`,
     
@@ -123,6 +131,10 @@ function generatePossibleFilenames(variant: string): string[] {
     `${variant}_logo_square.png`,
     `${variant}logo.png`,
     `${variant}_logo.png`,
+    
+    // Format profile (utilisé par certaines équipes comme Talon)
+    `${variant}logo_profile.png`,
+    `${variant}_logo_profile.png`,
     
     // Formats avec année
     `${variant}_2024_logo_square.png`,
@@ -136,6 +148,15 @@ function generatePossibleFilenames(variant: string): string[] {
     `${variant.toUpperCase()}logo_square.png`,
     `${variant.toLowerCase()}logo_square.png`
   ];
+  
+  // Pour les cas spéciaux comme "(European_Team)" ou "(Hong_Kong_Team)"
+  // où le format peut être différent
+  if (variant.includes("_team)")) {
+    formats.push(`${variant.replace(/\)$/, "")}logo_square.png)`);
+    formats.push(`${variant.replace(/\)$/, "")}logo_profile.png)`);
+  }
+  
+  return formats;
 }
 
 /**
@@ -153,6 +174,18 @@ function cleanImageUrl(url: string): string {
  */
 export async function getTeamLogoUrl(teamName: string): Promise<string | null> {
   try {
+    // Cas spéciaux connus directement
+    const directMappings: Record<string, string> = {
+      "Karmine Corp": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png?format=original",
+      "Rogue": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original",
+      "Talon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original"
+    };
+    
+    if (directMappings[teamName]) {
+      console.log(`[Leaguepedia] Using direct mapping for ${teamName}: ${directMappings[teamName]}`);
+      return directMappings[teamName];
+    }
+    
     // Générer toutes les variantes possibles du nom
     const variants = generateTeamNameVariants(teamName);
     console.log(`[Leaguepedia] Searching logo for "${teamName}"`);

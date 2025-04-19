@@ -18,6 +18,11 @@ const FALLBACK_LOGOS: Record<string, string> = {
   'Excel': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FXL-FullonDark.png',
   'SK Gaming': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FSK-FullonDark.png',
   
+  // Ajouts spéciaux pour les équipes problématiques
+  'Karmine Corp': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png?format=original',
+  'Rogue': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original',
+  'Talon': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original',
+  
   // Équipes majeures LCK
   'T1': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819360134_t1-2021-worlds.png',
   'Gen.G': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819238354_geng-2021-worlds.png',
@@ -37,7 +42,6 @@ const FALLBACK_LOGOS: Record<string, string> = {
   'NRG': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FNRG-FullonDark.png',
   
   // Équipes majeures LFL
-  'Karmine Corp': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FKCORP-FullonDark.png',
   'LDLC OL': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FLDLC-FullonDark.png',
   'Vitality.Bee': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FVIT-FullonDark.png',
   'BK ROG': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FBKROG-FullonDark.png',
@@ -62,7 +66,9 @@ function normalizeTeamName(name: string): string {
     'tl': 'team liquid',
     '100t': '100 thieves',
     'kcorp': 'karmine corp',
+    'karmineorp': 'karmine corp',
     'bds': 'team bds',
+    'rge': 'rogue',
   };
   
   return aliases[normalized] || normalized;
@@ -141,6 +147,18 @@ export async function getLogo(
   console.log(`[Logo] Fetching ${entityType} logo for: ${name}`);
   
   try {
+    // Vérifier les cas spéciaux directs en premier
+    const specialCases = {
+      'Karmine Corp': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png?format=original',
+      'Rogue': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original',
+      'Talon': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original'
+    };
+    
+    if (entityType === 'team' && specialCases[name]) {
+      console.log(`[Logo] Using special case direct URL for ${name}`);
+      return specialCases[name];
+    }
+    
     // 1. Si c'est une compétition, vérifier si on peut générer son logo
     if (entityType === 'tournament' && isKnownLeague(name)) {
       const logoUrl = getLeagueLogo(name);
