@@ -1,0 +1,93 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 17% 7%;
+    --foreground: 210 40% 98%;
+
+    --card: 240 17% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 240 17% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 240 17% 17%;
+    --input: 240 17% 17%;
+    --ring: 240 4.9% 83.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 240 17% 7%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 240 17% 17%;
+    --sidebar-ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-dark-900 text-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold;
+  }
+}
+
+@layer components {
+  .esport-card {
+    @apply bg-dark-800 border border-dark-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden;
+  }
+  
+  .esport-gradient {
+    @apply bg-gradient-to-br from-esport-700 to-esport-900;
+  }
+  
+  .glass-card {
+    @apply bg-dark-800/80 backdrop-blur-md border border-dark-700/50 rounded-lg shadow-lg;
+  }
+  
+  .status-live {
+    @apply text-xs font-semibold uppercase flex items-center gap-1 text-live;
+  }
+  
+  .status-live::before {
+    @apply content-[''] w-2 h-2 bg-live rounded-full animate-pulse-live;
+  }
+  
+  .status-upcoming {
+    @apply text-xs font-semibold uppercase text-orange-500;
+  }
+  
+  .status-finished {
+    @apply text-xs font-semibold uppercase text-muted-foreground;
+  }
+}
