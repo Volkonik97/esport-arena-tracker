@@ -18,6 +18,41 @@ const DEFAULT_HEADERS = {
   "Referer":       "https://lol.fandom.com"
 };
 
+/**
+ * Formatte le nom selon la convention Leaguepedia Teamnames
+ */
+function formatTeamLinkName(teamName: string): string {
+  // Règles de base pour team link
+  teamName = teamName.toLowerCase()
+    .replace(/\s+esports?$/i, '')
+    .replace(/\s+gaming$/i, '')
+    .replace(/^team\s+/i, '')
+    .replace(/[.\s']/g, '')
+    .replace(/&/g, 'and');
+  
+  // Cas spéciaux fréquents
+  const specialCases: Record<string, string> = {
+    'g2': 'g2',
+    'fnatic': 'fnc',
+    'rogue': 'rge',
+    'karmineorp': 'kcorp',
+    'excellondon': 'xl',
+    'madlions': 'mad',
+    'teamliquid': 'tl',
+    'cloud9': 'c9',
+    'skgaming': 'sk',
+    '100thieves': '100'
+  };
+  
+  for (const [key, value] of Object.entries(specialCases)) {
+    if (teamName.includes(key)) {
+      return value;
+    }
+  }
+  
+  return teamName.length <= 4 ? teamName : teamName.substring(0, 4);
+}
+
 serve(async (req) => {
   // 1) CORS preflight
   if (req.method === "OPTIONS") {
@@ -80,10 +115,71 @@ serve(async (req) => {
       console.log("[LP] Fetching team info for:", params.teamName);
       const json = await lpFetch(teamQs);
 
-      const imageFile = json?.cargoquery?.[0]?.title?.Image;
-      console.log("[LP] Image filename from cargoquery:", imageFile);
-
-      if (imageFile) {
+      // Si nous avons des données, mais pas d'image
+      const teamData = json?.cargoquery?.[0]?.title;
+      const imageFile = teamData?.Image;
+      
+      // Générer des noms de fichiers alternatifs si l'image n'est pas trouvée
+      if (!imageFile || imageFile === "") {
+        // Essayer la convention teamLink
+        const teamShort = teamData?.Short || "";
+        const teamLink = teamShort ? teamShort.toLowerCase() : formatTeamLinkName(params.teamName);
+        
+        // Essayer plusieurs formats de fichiers
+        const possibleFiles = [
+          `${teamLink}logo_square.png`,
+          `${teamLink}_logo_square.png`,
+          `${teamLink}logo.png`
+        ];
+        
+        for (const filename of possibleFiles) {
+          console.log("[LP] Trying alternative filename:", filename);
+          
+          const imageQs = new URLSearchParams({
+            action:        "query",
+            format:        "json",
+            formatversion: "2",
+            titles:        `File:${filename}`,
+            prop:          "imageinfo",
+            iiprop:        "url"
+          });
+          
+          const imgJson = await lpFetch(imageQs);
+          const page = Object.values(imgJson?.query?.pages || {})[0] as any;
+          
+          if (page && !page.missing) {
+            let logoUrl = page?.imageinfo?.[0]?.url;
+            console.log("[LP] Found alternative logo:", logoUrl);
+            
+            // Optimiser l'URL pour le chargement
+            if (logoUrl) {
+              logoUrl = logoUrl.replace(/^http:/, "https:");
+              
+              // Ajouter des paramètres pour éviter les problèmes de cache
+              if (logoUrl.includes("/revision/latest")) {
+                logoUrl = logoUrl.split('/revision/')[0] + `?format=original&nocache=${Date.now()}`;
+              }
+              
+              return new Response(JSON.stringify({
+                cargoquery: [{
+                  title: {
+                    Name: params.teamName,
+                    Image: filename,
+                    logoUrl,
+                    Short: teamShort || teamLink
+                  }
+                }]
+              }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+              });
+            }
+          }
+        }
+      } else {
+        console.log("[LP LOGO FILE] Retrieved from cargo:", imageFile);
+        
+        // Procéder normalement avec le fichier Image trouvé
         const imageQs = new URLSearchParams({
           action:        "query",
           format:        "json",
@@ -99,31 +195,29 @@ serve(async (req) => {
 
         console.log("[LP LOGO URL] Retrieved for", params.teamName + ":", logoUrl);
         
-        // Optimiser l'URL pour le chargement si c'est une URL Wikia
-        if (logoUrl && (logoUrl.includes("wikia.nocookie.net") || logoUrl.includes("static.wikia.nocookie.net"))) {
-          // S'assurer que l'URL utilise HTTPS
+        // Optimiser l'URL
+        if (logoUrl) {
           logoUrl = logoUrl.replace(/^http:/, "https:");
           
-          // Optimiser la taille de l'image pour éviter le problème de chargement
           if (logoUrl.includes("/revision/latest")) {
-            logoUrl = logoUrl.replace("/revision/latest", "/revision/latest/scale-to-width-down/150");
+            logoUrl = logoUrl.split('/revision/')[0] + `?format=original&nocache=${Date.now()}`;
           }
+          
+          return new Response(JSON.stringify({
+            cargoquery: [{
+              title: {
+                ...teamData,
+                logoUrl
+              }
+            }]
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
         }
-
-        return new Response(JSON.stringify({
-          cargoquery: [{
-            title: {
-              Name: params.teamName,
-              Image: imageFile,
-              logoUrl
-            }
-          }]
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
       }
 
+      // Si on arrive ici, on n'a pas trouvé de logo spécifique
       return new Response(JSON.stringify(json), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

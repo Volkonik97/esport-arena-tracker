@@ -33,8 +33,8 @@ export async function fetchTeamLogo(teamName: string): Promise<string | null> {
       
       // Optimiser les URLs de Wikia
       if (secureUrl.includes('wikia.nocookie.net') || secureUrl.includes('static.wikia.nocookie.net')) {
+        // Supprimer les paramètres existants
         if (secureUrl.includes('/revision/latest')) {
-          // Utiliser un format d'URL plus fiable pour Wikia
           secureUrl = secureUrl.split('/revision/')[0] + `?format=original&nocache=${Date.now()}`;
         }
       }

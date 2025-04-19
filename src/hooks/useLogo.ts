@@ -14,10 +14,15 @@ import { toast } from "sonner";
 export function useLogo(type: 'team' | 'tournament', name: string, defaultLogo?: string) {
   return useQuery({
     queryKey: ['logo', type, name],
-    queryFn: async ({ signal }) => {
+    queryFn: async () => {
       console.log(`[useLogo] Fetching logo for ${type}: ${name}`);
       
       try {
+        // Ajout d'un délai aléatoire entre 0 et 200ms pour éviter les requêtes simultanées
+        // qui pourraient surcharger l'API Leaguepedia
+        const randomDelay = Math.floor(Math.random() * 200);
+        await new Promise(resolve => setTimeout(resolve, randomDelay));
+        
         const result = await getLogo(type, name, defaultLogo);
         console.log(`[useLogo] Result for ${name}: ${result ? "✅ Got URL" : "❌ No URL found"}`);
         
@@ -28,6 +33,17 @@ export function useLogo(type: 'team' | 'tournament', name: string, defaultLogo?:
         return result;
       } catch (error) {
         console.error(`[useLogo] Error fetching logo for ${name}:`, error);
+        
+        // Notification d'erreur (une seule fois par session)
+        const errorId = `logo-error-${type}-${name}`;
+        if (!localStorage.getItem(errorId)) {
+          toast.error(`Impossible de charger le logo pour ${name}`, {
+            id: errorId,
+            duration: 3000
+          });
+          localStorage.setItem(errorId, "true");
+        }
+        
         // En cas d'erreur, utiliser l'URL par défaut si disponible
         if (defaultLogo) {
           return defaultLogo;

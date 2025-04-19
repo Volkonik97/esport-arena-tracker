@@ -1,3 +1,4 @@
+
 /**
  * Service pour interagir avec l'API Leaguepedia
  */
@@ -27,13 +28,72 @@ function sanitizeTeamName(teamName: string): string {
 }
 
 /**
+ * Formatte le nom selon la convention Leaguepedia Teamnames
+ * Dans Leaguepedia, les noms de fichiers suivent souvent {{#var:teamLink}}logo_square.png
+ * où teamLink est défini dans les modèles Teamnames
+ */
+function formatTeamLinkName(teamName: string): string {
+  // Règles de base pour team link (simplifiées des modèles Teamnames de Leaguepedia)
+  teamName = teamName.toLowerCase()
+    .replace(/\s+esports?$/i, '') // Enlever "Esports" ou "Esport" à la fin
+    .replace(/\s+gaming$/i, '')   // Enlever "Gaming" à la fin
+    .replace(/^team\s+/i, '')     // Enlever "Team" au début
+    .replace(/[.\s']/g, '')       // Enlever les espaces, points et apostrophes
+    .replace(/&/g, 'and');        // Remplacer & par and
+  
+  // Traiter les cas spéciaux connus
+  const specialCases: Record<string, string> = {
+    'g2': 'g2',
+    'fnatic': 'fnc',
+    'rogue': 'rge',
+    'karmineorp': 'kcorp',
+    'excellondon': 'xl',
+    'madlions': 'mad',
+    'teamliquid': 'tl',
+    'cloud9': 'c9',
+    'skgaming': 'sk',
+    'teambds': 'bds',
+    'geng': 'gen',
+    'dpluskia': 'dk',
+    't1': 't1',
+    'ktrolster': 'kt',
+    'hanwhalifesports': 'hle',
+    'drx': 'drx',
+    'bilibiligaming': 'blg',
+    'weibogaming': 'wbg',
+    'jdgaming': 'jdg',
+    'lgdesports': 'ldg',
+    'topesports': 'tes',
+    'edwardgaming': 'edg',
+    '100thieves': '100',
+    'flyquest': 'fly',
+    'evilgeniuses': 'eg',
+    'nrg': 'nrg'
+  };
+  
+  // Vérifier si nous avons un cas spécial
+  for (const [key, value] of Object.entries(specialCases)) {
+    if (teamName.includes(key)) {
+      return value;
+    }
+  }
+  
+  // Sinon retourner les 3-4 premiers caractères ou le nom complet si court
+  return teamName.length <= 4 ? teamName : teamName.substring(0, 4);
+}
+
+/**
  * Génère différentes variantes du nom d'une équipe
  */
 function generateTeamNameVariants(teamName: string): string[] {
   const baseNameWithoutParentheses = teamName.replace(/\s*\([^)]*\)/g, '').trim();
   const baseName = sanitizeTeamName(teamName);
+  const teamLinkName = formatTeamLinkName(teamName);
   
   return [
+    // Format teamLink (prioritaire selon la convention Leaguepedia)
+    teamLinkName,
+    
     // Variantes du nom complet
     baseName,
     baseName.toLowerCase(),
@@ -56,8 +116,10 @@ function generateTeamNameVariants(teamName: string): string[] {
  */
 function generatePossibleFilenames(variant: string): string[] {
   return [
-    // Formats standards
+    // Format selon la convention Leaguepedia (prioritaire)
     `${variant}logo_square.png`,
+    
+    // Formats standards
     `${variant}_logo_square.png`,
     `${variant}logo.png`,
     `${variant}_logo.png`,
@@ -143,6 +205,37 @@ export async function getTeamLogoUrl(teamName: string): Promise<string | null> {
           continue;
         }
       }
+    }
+
+    // Si nous n'avons pas trouvé de logo, essayons de chercher directement par équipe
+    try {
+      console.log(`[Leaguepedia] Attempting to search team directly: ${teamName}`);
+      // Essayer une requête directe avec le modèle TeamPart
+      const params = new URLSearchParams({
+        action: 'parse',
+        format: 'json',
+        text: `{{TeamPart|${teamName}}}`,
+        contentmodel: 'wikitext',
+        origin: '*'
+      });
+
+      const response = await fetch(`${LEAGUEPEDIA_API_URL}?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        const html = data.parse?.text?.['*'];
+        
+        // Extraire l'URL de l'image si elle existe dans la réponse
+        if (html && typeof html === 'string') {
+          const imageMatch = html.match(/src="([^"]+)"/);
+          if (imageMatch && imageMatch[1]) {
+            const imageUrl = imageMatch[1].replace(/^\/\//, 'https://');
+            console.log(`[Leaguepedia] Found logo through TeamPart: ${imageUrl}`);
+            return cleanImageUrl(imageUrl);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`[Leaguepedia] Failed to use TeamPart template:`, error);
     }
 
     console.warn(`[Leaguepedia] No logo found for team: ${teamName}`);
