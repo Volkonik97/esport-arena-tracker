@@ -29,8 +29,7 @@ export function useUpcomingMatches(limit = 10, tournamentFilter?: string): Match
         console.log("Fetching upcoming matches with tournament filter:", tournamentFilter);
         let whereConditions = [
           `SG.DateTime_UTC >= '${new Date().toISOString()}'`,
-          'T.IsQualifier=0',
-          'T.IsPlayoffs=0'
+          'T.IsQualifier=0'
         ];
         
         if (tournamentFilter) {
@@ -41,7 +40,8 @@ export function useUpcomingMatches(limit = 10, tournamentFilter?: string): Match
           body: {
             params: {
               where: whereConditions,
-              limit: limit.toString()
+              limit: limit.toString(),
+              order_by: "SG.DateTime_UTC ASC"
             }
           }
         });

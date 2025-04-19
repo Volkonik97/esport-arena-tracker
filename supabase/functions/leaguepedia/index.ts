@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const LEAGUEPEDIA_API_URL = "https://lol.fandom.com/api.php";
@@ -261,7 +260,7 @@ serve(async (req) => {
       format    = "json",
       tables    = "ScoreboardGames=SG,Tournaments=T",
       join_on   = "SG.Tournament=T.Name",
-      fields    = "SG.Team1,SG.Team2,SG.Winner,SG.Team1Score,SG.Team2Score,T.Name=Tournament,T.Region,T.League",
+      fields    = "SG.Team1,SG.Team2,SG.Winner,SG.Team1Score,SG.Team2Score,T.Name=Tournament,T.Region,T.League,SG.DateTime_UTC=DateTime",
       limit     = "10",
       where,
       order_by
@@ -282,13 +281,14 @@ serve(async (req) => {
     } else {
       [
         `SG.DateTime_UTC >= \"${new Date().toISOString()}\"`,
-        "T.IsQualifier=0",
-        "T.IsPlayoffs=0"
+        "T.IsQualifier=0"
       ].forEach(w => qs.append("where", w));
     }
 
     if (order_by) {
       qs.set("order_by", order_by);
+    } else {
+      qs.set("order_by", "SG.DateTime_UTC ASC");
     }
 
     console.log("[LP] Fetching games with params:", qs.toString());
@@ -300,7 +300,6 @@ serve(async (req) => {
     });
   } catch (e: any) {
     console.error("[LP UNEXPECTED ERROR]", e);
-
     return new Response(JSON.stringify({
       error: e.message,
       cargoquery: []
