@@ -27,8 +27,19 @@ export async function fetchTeamLogo(teamName: string): Promise<string | null> {
     
     if (logoUrl) {
       console.log(`[fetchTeamLogo] Success: Got logo URL for ${teamName}`);
-      // Make sure the URL uses HTTPS
-      return logoUrl.replace(/^http:/, 'https:');
+      
+      // Assurer que l'URL utilise HTTPS
+      let secureUrl = logoUrl.replace(/^http:/, 'https:');
+      
+      // Optimiser les URLs de Wikia
+      if (secureUrl.includes('wikia.nocookie.net') || secureUrl.includes('static.wikia.nocookie.net')) {
+        if (secureUrl.includes('/revision/latest')) {
+          // Utiliser un format d'URL plus fiable pour Wikia
+          secureUrl = secureUrl.split('/revision/')[0] + `?format=original&nocache=${Date.now()}`;
+        }
+      }
+      
+      return secureUrl;
     } else {
       console.warn(`[fetchTeamLogo] No logo URL found for ${teamName}`);
     }

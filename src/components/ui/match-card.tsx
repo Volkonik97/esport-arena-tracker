@@ -1,9 +1,11 @@
+
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CalendarClock } from "lucide-react";
 import { useTeamInfo } from "@/hooks/useTeamInfo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLogo } from "@/hooks/useLogo";
+import { useState } from "react";
 
 export interface MatchTeam {
   id: string;
@@ -27,9 +29,14 @@ export interface MatchProps {
 
 export function MatchCard({ id, teams, competition, date, status, link }: MatchProps) {
   // Charger les logos
-  const { data: team1Logo } = useLogo('team', teams[0].name);
-  const { data: team2Logo } = useLogo('team', teams[1].name);
-  const { data: competitionLogo } = useLogo('tournament', competition.name);
+  const { data: team1Logo, isLoading: isLoading1 } = useLogo('team', teams[0].name, teams[0].logo);
+  const { data: team2Logo, isLoading: isLoading2 } = useLogo('team', teams[1].name, teams[1].logo);
+  const { data: competitionLogo, isLoading: isLoadingComp } = useLogo('tournament', competition.name);
+  
+  // États pour gérer les erreurs d'image
+  const [team1LogoError, setTeam1LogoError] = useState(false);
+  const [team2LogoError, setTeam2LogoError] = useState(false);
+  const [compLogoError, setCompLogoError] = useState(false);
 
   // Format the date
   const matchDate = new Date(date);
@@ -52,6 +59,16 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
     live: "text-red-500 animate-pulse",
     finished: "text-gray-400"
   }[status];
+
+  // Fonction pour obtenir le logo correct pour une équipe
+  const getTeamLogo = (index: 0 | 1) => {
+    const teamLogo = index === 0 ? team1Logo : team2Logo;
+    const errorState = index === 0 ? team1LogoError : team2LogoError;
+    const defaultLogo = teams[index].logo;
+    
+    if (errorState) return '/placeholder.svg';
+    return teamLogo || defaultLogo || '/placeholder.svg';
+  };
 
   return (
     <Link to={link || `/matches/${id}`} className="block">
@@ -86,15 +103,22 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded bg-dark-700 flex items-center justify-center overflow-hidden">
-                <img 
-                  src={team1Logo || teams[0].logo || '/placeholder.svg'} 
-                  alt={teams[0].name}
-                  className="w-10 h-10 object-contain"
-                  onError={(e) => {
-                    console.error(`Failed to load logo for ${teams[0].name}`);
-                    e.currentTarget.src = '/placeholder.svg';
-                  }}
-                />
+                {isLoading1 ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <img 
+                    src={getTeamLogo(0)} 
+                    alt={teams[0].name}
+                    className="w-10 h-10 object-contain"
+                    onError={(e) => {
+                      console.error(`Failed to load logo for ${teams[0].name}`);
+                      setTeam1LogoError(true);
+                    }}
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
               <div className="font-medium">{teams[0].name}</div>
             </div>
@@ -122,15 +146,22 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
             <div className="flex items-center gap-3 justify-end">
               <div className="font-medium order-1">{teams[1].name}</div>
               <div className="w-12 h-12 rounded bg-dark-700 flex items-center justify-center overflow-hidden order-2">
-                <img 
-                  src={team2Logo || teams[1].logo || '/placeholder.svg'} 
-                  alt={teams[1].name}
-                  className="w-10 h-10 object-contain"
-                  onError={(e) => {
-                    console.error(`Failed to load logo for ${teams[1].name}`);
-                    e.currentTarget.src = '/placeholder.svg';
-                  }}
-                />
+                {isLoading2 ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <img 
+                    src={getTeamLogo(1)} 
+                    alt={teams[1].name}
+                    className="w-10 h-10 object-contain"
+                    onError={(e) => {
+                      console.error(`Failed to load logo for ${teams[1].name}`);
+                      setTeam2LogoError(true);
+                    }}
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
             </div>
           </div>

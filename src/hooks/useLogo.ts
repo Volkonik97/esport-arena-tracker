@@ -1,5 +1,7 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { getLogo } from '@/services/logo-service';
+import { toast } from "sonner";
 
 /**
  * Hook pour récupérer le logo d'une entité (équipe ou tournoi)
@@ -14,14 +16,24 @@ export function useLogo(type: 'team' | 'tournament', name: string, defaultLogo?:
     queryKey: ['logo', type, name],
     queryFn: async ({ signal }) => {
       console.log(`[useLogo] Fetching logo for ${type}: ${name}`);
-      const result = await getLogo(type, name, defaultLogo);
-      console.log(`[useLogo] Result for ${name}: ${result ? "✅ Got URL" : "❌ No URL found"}`);
       
-      if (!result) {
-        throw new Error(`No logo found for ${type} ${name}`);
+      try {
+        const result = await getLogo(type, name, defaultLogo);
+        console.log(`[useLogo] Result for ${name}: ${result ? "✅ Got URL" : "❌ No URL found"}`);
+        
+        if (!result) {
+          throw new Error(`No logo found for ${type} ${name}`);
+        }
+        
+        return result;
+      } catch (error) {
+        console.error(`[useLogo] Error fetching logo for ${name}:`, error);
+        // En cas d'erreur, utiliser l'URL par défaut si disponible
+        if (defaultLogo) {
+          return defaultLogo;
+        }
+        throw error;
       }
-      
-      return result;
     },
     staleTime: 1000 * 60 * 60 * 24, // 24 heures
     gcTime: 1000 * 60 * 60 * 24 * 7, // 7 jours

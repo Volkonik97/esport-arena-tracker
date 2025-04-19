@@ -1,7 +1,8 @@
+
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLogo } from "@/hooks/useLogo";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export interface TeamMember {
   id: string;
@@ -20,12 +21,21 @@ export interface TeamProps {
 }
 
 export function TeamCard({ id, name, logo, country, game }: TeamProps) {
-  const { data: logoUrl, isLoading } = useLogo("team", name, logo);
+  const { data: logoUrl, isLoading, isError } = useLogo("team", name, logo);
   const [currentLogoIndex, setCurrentLogoIndex] = useState(0);
   const [imageError, setImageError] = useState(false);
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+
+  // Reset l'état d'erreur quand logoUrl change
+  useEffect(() => {
+    setImageError(false);
+    setCurrentLogoIndex(0);
+    setFallbackUrl(null);
+  }, [logoUrl]);
 
   // Fonction pour obtenir l'URL du logo actuel
   const getCurrentLogo = () => {
+    if (fallbackUrl) return fallbackUrl;
     if (imageError) return '/placeholder.svg';
     if (!logoUrl) return logo || '/placeholder.svg';
 
@@ -42,8 +52,18 @@ export function TeamCard({ id, name, logo, country, game }: TeamProps) {
     if (Array.isArray(logoUrl) && currentLogoIndex < logoUrl.length - 1) {
       console.log(`[TeamCard] Trying next logo source for ${name}`);
       setCurrentLogoIndex(currentLogoIndex + 1);
+    } else if (!fallbackUrl) {
+      // Si c'est la première erreur avec une URL non-tableau, essayer avec le logo par défaut
+      if (logo && logoUrl !== logo) {
+        console.log(`[TeamCard] Trying default logo for ${name}`);
+        setFallbackUrl(logo);
+      } else {
+        console.warn(`[TeamCard] Failed to load image for team: ${name}, falling back to default logo`);
+        setImageError(true);
+      }
     } else {
-      console.warn(`[TeamCard] Failed to load image for team: ${name}, falling back to default logo`);
+      // Si même le fallback échoue
+      console.warn(`[TeamCard] All logo sources failed for ${name}`);
       setImageError(true);
     }
   };

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getTeamLogoUrl } from "./leaguepedia-service";
 import { getLeagueLogo, isKnownLeague } from "@/config/league-logos";
@@ -78,14 +79,16 @@ async function saveLogoToCache(
 ): Promise<void> {
   // Ne pas sauvegarder les fallbacks codés en dur
   if (isFallback) return;
+  
   try {
+    // Utiliser upsert pour éviter les conflits, mais ne pas inclure le champ updated_at
+    // car il peut ne pas exister dans toutes les installations de Supabase
     const { error } = await supabase
       .from('assets')
       .upsert({
         entity_type: entityType,
         name,
-        logo_url: logoUrl,
-        updated_at: new Date().toISOString()
+        logo_url: logoUrl
       }, {
         onConflict: 'entity_type,name'
       });
@@ -98,6 +101,35 @@ async function saveLogoToCache(
     console.log(`[Logo] Saved to cache: ${name}`);
   } catch (error) {
     console.warn('[Logo] Error saving to cache:', error);
+  }
+}
+
+// Vérifie si une URL est celle de Wikia/Fandom et la nettoie si nécessaire
+function cleanWikiaUrl(url: string): string {
+  if (!url) return url;
+  
+  // Si l'URL est déjà propre, la retourner telle quelle
+  if (!url.includes('wikia.nocookie.net') && !url.includes('static.wikia.nocookie.net')) {
+    return url;
+  }
+  
+  try {
+    // Nettoyer l'URL pour éviter les problèmes de cache et de redirection
+    let cleanedUrl = url.replace(/^http:/, 'https:');
+    
+    // Supprimer les paramètres /revision/latest qui causent des problèmes
+    if (cleanedUrl.includes('/revision/latest')) {
+      // Retirer la partie revision et tout ce qui suit
+      cleanedUrl = cleanedUrl.split('/revision/')[0];
+      // Ajouter un timestamp pour éviter le cache
+      cleanedUrl += `?format=original&nocache=${Date.now()}`;
+    }
+    
+    console.log(`[Logo] Cleaned Wikia URL from ${url} to ${cleanedUrl}`);
+    return cleanedUrl;
+  } catch (e) {
+    console.error('[Logo] Error cleaning Wikia URL:', e);
+    return url;
   }
 }
 
@@ -128,14 +160,16 @@ export async function getLogo(
 
     if (!cacheError && cachedLogo?.logo_url) {
       console.log(`[Logo] Cache hit for ${entityType} ${name}`);
-      return cachedLogo.logo_url;
+      return cleanWikiaUrl(cachedLogo.logo_url);
     }
+    
+    console.log(`[Logo] Not in cache, fetching from API...`);
 
     // 3. Vérifier les logos connus en fallback
     if (entityType === 'team') {
       // Vérifier le nom exact
       if (FALLBACK_LOGOS[name]) {
-        console.log(`[Logo] Using fallback logo for ${name}`);
+        console.log(`[Logo] Using known fallback for ${name}`);
         return FALLBACK_LOGOS[name];
       }
       
@@ -154,12 +188,19 @@ export async function getLogo(
     // 4. Si c'est une équipe, essayer l'API Leaguepedia
     if (entityType === 'team') {
       console.log(`[Logo] Fetching from Leaguepedia API for ${name}`);
-      const logoUrl = await getTeamLogoUrl(name);
-      
-      if (logoUrl) {
-        // Sauvegarder dans Supabase pour la prochaine fois
-        await saveLogoToCache(entityType, name, logoUrl);
-        return logoUrl;
+      try {
+        const logoUrl = await getTeamLogoUrl(name);
+        
+        if (logoUrl) {
+          // Nettoyer l'URL si nécessaire
+          const cleanedUrl = cleanWikiaUrl(logoUrl);
+          
+          // Sauvegarder dans Supabase pour la prochaine fois
+          await saveLogoToCache(entityType, name, cleanedUrl);
+          return cleanedUrl;
+        }
+      } catch (error) {
+        console.error(`[Logo] API internal error for team ${name}:`, error);
       }
     }
 
