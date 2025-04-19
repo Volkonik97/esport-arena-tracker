@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -60,7 +61,11 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
           });
         }
         
-        return { matches: [], isFallback: false };
+        // If we reach here, there's no matches data
+        console.warn("No upcoming matches data returned");
+        
+        // Fallback to original match fetching if the new format fails
+        return await fetchMatchesOriginalFormat(limit, tournamentFilter);
       } catch (error) {
         console.error('Error fetching upcoming matches:', error);
         toast({
@@ -69,7 +74,8 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
           variant: "destructive"
         });
         
-        return { matches: [], isFallback: false };
+        // Try fallback method on error
+        return await fetchMatchesOriginalFormat(limit, tournamentFilter);
       }
     }
   });
@@ -80,6 +86,44 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
     error: result.error,
     isFallback: result.data?.isFallback || false
   };
+}
+
+// Fallback method using original match format if the new format fails
+async function fetchMatchesOriginalFormat(limit: number, tournamentFilter?: string) {
+  try {
+    console.log("Falling back to original match format");
+    let whereConditions = [
+      `SG.DateTime_UTC >= '${new Date().toISOString()}'`,
+      'T.IsQualifier=0'
+    ];
+    
+    if (tournamentFilter) {
+      whereConditions.push(`T.Name = '${tournamentFilter}'`);
+    }
+    
+    const { data, error } = await supabase.functions.invoke('leaguepedia', {
+      body: {
+        params: {
+          where: whereConditions,
+          limit: limit.toString(),
+          order_by: "SG.DateTime_UTC ASC"
+        }
+      }
+    });
+
+    if (error) throw error;
+    
+    if (data?.cargoquery && Array.isArray(data.cargoquery)) {
+      const matches = data.cargoquery.map(item => item.title as LeagueMatch);
+      console.log("Fallback method returned matches:", matches.length);
+      return { matches, isFallback: true };
+    }
+    
+    return { matches: [], isFallback: true };
+  } catch (error) {
+    console.error('Error in fallback method:', error);
+    return { matches: [], isFallback: true };
+  }
 }
 
 export function useRecentResults(limit = 10, tournamentFilter?: string): MatchesQueryResult {

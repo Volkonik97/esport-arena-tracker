@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const LEAGUEPEDIA_API_URL = "https://lol.fandom.com/api.php";
@@ -75,29 +76,35 @@ serve(async (req) => {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 5000);
 
-    const resp = await fetch(url, {
-      signal: controller.signal,
-      headers: DEFAULT_HEADERS
-    });
-    clearTimeout(tid);
-
-    const raw = await resp.text();
-    console.error("[LP RAW]", raw);
-
-    let json: any;
     try {
-      json = JSON.parse(raw);
+      const resp = await fetch(url, {
+        signal: controller.signal,
+        headers: DEFAULT_HEADERS
+      });
+      clearTimeout(tid);
+
+      const raw = await resp.text();
+      console.error("[LP RAW]", raw);
+
+      let json: any;
+      try {
+        json = JSON.parse(raw);
+      } catch (e) {
+        console.error("[LP PARSE FAILED]", raw);
+        throw e;
+      }
+
+      if (json.error) {
+        console.error("[LP API ERROR]", json.error);
+        return { error: json.error, cargoquery: [] };
+      }
+
+      return json;
     } catch (e) {
-      console.error("[LP PARSE FAILED]", raw);
-      throw e;
+      clearTimeout(tid);
+      console.error("[LP FETCH ERROR]", e.message);
+      return { error: { message: e.message }, cargoquery: [] };
     }
-
-    if (json.error) {
-      console.error("[LP API ERROR]", json.error);
-      return { error: json.error, cargoquery: [] };
-    }
-
-    return json;
   }
 
   try {
@@ -257,19 +264,34 @@ serve(async (req) => {
     // 5) Si on veut les prochains matchs (format demandé par l'utilisateur)
     if (params.upcomingMatches === true) {
       console.log("[LP] Fetching upcoming matches with new format");
+      
+      // Ajouter filtre de tournoi si nécessaire
+      let whereClause = "MS.DateTime_UTC>NOW()";
+      if (params.tournamentFilter) {
+        whereClause += ` AND MS.Tournament="${params.tournamentFilter}"`;
+      }
+      
       const matchQs = new URLSearchParams({
         action: "cargoquery",
         format: "json",
         formatversion: "2",
         tables: "MatchScheduleGame=MSG,MatchSchedule=MS",
         join_on: "MSG.MatchId=MS.MatchId",
-        fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC,MS.Tournament,MS.BestOf",
-        where: "MS.DateTime_UTC>NOW()",
+        fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC=DateTime,MS.Tournament,MS.BestOf",
+        where: whereClause,
         order_by: "MS.DateTime_UTC",
         limit: params.limit || "5"
       });
 
+      console.log("[LP] Upcoming matches query:", matchQs.toString());
       const json = await lpFetch(matchQs);
+      
+      if (json.error || !json.cargoquery || json.cargoquery.length === 0) {
+        console.error("[LP] Error or no results from upcoming matches query, trying backup method");
+        // Si la requête échoue, essayer une autre méthode
+        return await handleLegacyMatchRequest(params);
+      }
+      
       return new Response(JSON.stringify(json), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -277,6 +299,21 @@ serve(async (req) => {
     }
 
     // 6) Sinon, on gère la requête de matchs avec l'ancienne format
+    return await handleLegacyMatchRequest(params);
+    
+  } catch (e: any) {
+    console.error("[LP UNEXPECTED ERROR]", e);
+    return new Response(JSON.stringify({
+      error: e.message,
+      cargoquery: []
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+  
+  // Méthode de secours pour gérer les requêtes avec l'ancien format
+  async function handleLegacyMatchRequest(params: Record<string, any>) {
     const {
       action    = "cargoquery",
       format    = "json",
@@ -318,15 +355,6 @@ serve(async (req) => {
 
     return new Response(JSON.stringify(json), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
-  } catch (e: any) {
-    console.error("[LP UNEXPECTED ERROR]", e);
-    return new Response(JSON.stringify({
-      error: e.message,
-      cargoquery: []
-    }), {
-      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
