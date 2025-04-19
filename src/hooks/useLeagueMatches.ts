@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -34,9 +33,15 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
         const { data, error } = await supabase.functions.invoke('leaguepedia', {
           body: {
             params: {
-              upcomingMatches: true,
+              action: "cargoquery",
+              format: "json",
+              tables: "MatchScheduleGame=MSG,MatchSchedule=MS",
+              join_on: "MSG.MatchId=MS.MatchId",
+              fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC=DateTime,MS.Tournament,MS.BestOf",
+              where: "MS.DateTime_UTC>NOW()",
+              order_by: "MS.DateTime_UTC",
               limit: limit.toString(),
-              tournamentFilter
+              ...(tournamentFilter ? { tournamentFilter } : {})
             }
           }
         });
@@ -49,7 +54,10 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
         if (data?.cargoquery && Array.isArray(data.cargoquery)) {
           const matches = data.cargoquery.map(item => item.title as LeagueMatch);
           console.log("API returned upcoming matches:", matches.length);
-          return { matches, isFallback: false };
+          
+          if (matches.length > 0) {
+            return { matches, isFallback: false };
+          }
         }
 
         if (data?.error) {
@@ -61,11 +69,7 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
           });
         }
         
-        // If we reach here, there's no matches data
-        console.warn("No upcoming matches data returned");
-        
-        // Fallback to original match fetching if the new format fails
-        return await fetchMatchesOriginalFormat(limit, tournamentFilter);
+        return await fetchCurrentMatchesAlternative(limit, tournamentFilter);
       } catch (error) {
         console.error('Error fetching upcoming matches:', error);
         toast({
@@ -74,8 +78,7 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
           variant: "destructive"
         });
         
-        // Try fallback method on error
-        return await fetchMatchesOriginalFormat(limit, tournamentFilter);
+        return await fetchCurrentMatchesAlternative(limit, tournamentFilter);
       }
     }
   });
@@ -88,7 +91,38 @@ export function useUpcomingMatches(limit = 5, tournamentFilter?: string): Matche
   };
 }
 
-// Fallback method using original match format if the new format fails
+async function fetchCurrentMatchesAlternative(limit: number, tournamentFilter?: string) {
+  try {
+    console.log("Trying alternative current matches approach");
+    
+    const { data, error } = await supabase.functions.invoke('leaguepedia', {
+      body: {
+        params: {
+          directMatchQuery: true,
+          limit: limit.toString(),
+          ...(tournamentFilter ? { tournamentFilter } : {})
+        }
+      }
+    });
+
+    if (error) {
+      console.error("Alternative fetch error:", error);
+      throw error;
+    }
+    
+    if (data?.cargoquery && Array.isArray(data.cargoquery)) {
+      const matches = data.cargoquery.map(item => item.title as LeagueMatch);
+      console.log("Alternative method returned matches:", matches.length);
+      return { matches, isFallback: true };
+    }
+    
+    return await fetchMatchesOriginalFormat(limit, tournamentFilter);
+  } catch (error) {
+    console.error('Error in alternative fetch method:', error);
+    return await fetchMatchesOriginalFormat(limit, tournamentFilter);
+  }
+}
+
 async function fetchMatchesOriginalFormat(limit: number, tournamentFilter?: string) {
   try {
     console.log("Falling back to original match format");

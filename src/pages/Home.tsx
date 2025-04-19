@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
@@ -126,6 +125,12 @@ export default function Home() {
       status: matchStatus
     };
   };
+  
+  console.log("Current matches data:", {
+    upcoming: upcomingMatches,
+    recent: recentMatches,
+    live: liveMatches
+  });
   
   return (
     <Layout>

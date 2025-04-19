@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const LEAGUEPEDIA_API_URL = "https://lol.fandom.com/api.php";
@@ -77,6 +76,8 @@ serve(async (req) => {
     const tid = setTimeout(() => controller.abort(), 5000);
 
     try {
+      console.log("[LP] Sending request to:", url);
+      
       const resp = await fetch(url, {
         signal: controller.signal,
         headers: DEFAULT_HEADERS
@@ -84,7 +85,7 @@ serve(async (req) => {
       clearTimeout(tid);
 
       const raw = await resp.text();
-      console.error("[LP RAW]", raw);
+      console.log("[LP RAW]", raw);
 
       let json: any;
       try {
@@ -261,7 +262,37 @@ serve(async (req) => {
       });
     }
 
-    // 5) Si on veut les prochains matchs (format demandé par l'utilisateur)
+    // 5) Si on veut une requête directe de matchs à venir (format exact demandé)
+    if (params.directMatchQuery === true) {
+      console.log("[LP] Using direct match query approach");
+      
+      // Construire l'URL exactement comme suggéré
+      const matchQs = new URLSearchParams({
+        action: "cargoquery",
+        format: "json",
+        formatversion: "2",
+        tables: "MatchScheduleGame=MSG,MatchSchedule=MS",
+        join_on: "MSG.MatchId=MS.MatchId",
+        fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC=DateTime,MS.Tournament,MS.BestOf",
+        where: "MS.DateTime_UTC>NOW()",
+        order_by: "MS.DateTime_UTC",
+        limit: params.limit || "5"
+      });
+
+      if (params.tournamentFilter) {
+        matchQs.set("where", `MS.DateTime_UTC>NOW() AND MS.Tournament="${params.tournamentFilter}"`);
+      }
+
+      console.log("[LP] Direct match query params:", matchQs.toString());
+      const json = await lpFetch(matchQs);
+      
+      return new Response(JSON.stringify(json), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // 6) Si on veut les prochains matchs (format demandé par l'utilisateur)
     if (params.upcomingMatches === true) {
       console.log("[LP] Fetching upcoming matches with new format");
       
@@ -298,7 +329,33 @@ serve(async (req) => {
       });
     }
 
-    // 6) Sinon, on gère la requête de matchs avec l'ancienne format
+    // 7) Si on reçoit directement des paramètres de requête standard (action, format, tables, etc.)
+    if (params.action === "cargoquery") {
+      console.log("[LP] Processing direct CargoQuery params");
+      
+      const directQs = new URLSearchParams();
+      
+      // Transférer tous les paramètres directement
+      for (const [key, value] of Object.entries(params)) {
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            directQs.append(key, item);
+          }
+        } else if (value !== undefined && value !== null) {
+          directQs.append(key, value.toString());
+        }
+      }
+      
+      console.log("[LP] Direct params query:", directQs.toString());
+      const json = await lpFetch(directQs);
+      
+      return new Response(JSON.stringify(json), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // 8) Sinon, on gère la requête de matchs avec l'ancienne format
     return await handleLegacyMatchRequest(params);
     
   } catch (e: any) {

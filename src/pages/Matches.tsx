@@ -12,7 +12,14 @@ export default function Matches() {
   const [selectedCompetition, setSelectedCompetition] = useState("Tous");
   const [filtersVisible, setFiltersVisible] = useState(false);
   
-  const { data: matches = [], isLoading } = useUpcomingMatches(20);
+  const { data: matches = [], isLoading, isFallback } = useUpcomingMatches(20);
+
+  console.log("Matches page data:", {
+    matches: matches,
+    count: matches?.length || 0,
+    isFallback: isFallback,
+    competitions: matches.map(m => m.Tournament).filter(Boolean)
+  });
 
   // Filter matches based on search and competition
   const filteredMatches = matches.filter(match => {
@@ -101,7 +108,7 @@ export default function Matches() {
             ))
           ) : (
             <div className="text-center py-8 text-gray-400">
-              <p>Aucun match trouvé</p>
+              <p>Aucun match trouvé {isFallback ? "(Mode de secours activé)" : ""}</p>
               <Button 
                 variant="link" 
                 className="mt-2"
