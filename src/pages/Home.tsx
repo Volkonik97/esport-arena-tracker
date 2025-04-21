@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
 import { Button } from "@/components/ui/button";
@@ -72,15 +72,34 @@ const featuredCompetitions = [
   },
 ];
 
+// Ajout : Spoiler toggle
+function useSpoiler(defaultValue = true) {
+  const [spoiler, setSpoiler] = useState(defaultValue);
+  const toggleSpoiler = () => setSpoiler(v => !v);
+  return [spoiler, toggleSpoiler] as const;
+}
+
 export default function Home() {
+  // Ajoute un log global pour vérifier que Home.tsx est bien exécuté
+  useEffect(() => {
+    console.log('HOME COMPONENT MOUNTED');
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'live' | 'upcoming' | 'recent'>('live');
+  const [spoiler, toggleSpoiler] = useSpoiler(true); // Par défaut activé
   const { data: upcomingMatches = [], isLoading: upcomingLoading } = useUpcomingMatches(5);
-  const { data: recentMatches = [], isLoading: recentLoading } = useRecentResults(5);
+  const { data: recentMatches = [], isLoading: recentLoading } = useRecentResults(15);
   
+  // Ajout debug pour voir ce que renvoie recentMatches brut
+  console.log('DEBUG RECENT MATCHES RAW:', recentMatches);
+  
+  // Même logique que Matches.tsx pour déterminer les matchs en direct (durée réelle, ex: 2h)
+  const MATCH_DURATION_MINUTES = 120; // 2 heures
   const liveMatches = upcomingMatches.filter(match => {
-    const matchDate = new Date(match.DateTime);
+    const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
     const now = new Date();
-    return matchDate <= now && matchDate >= new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 hours window
+    const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
+    return now >= matchDate && now <= matchEnd;
   });
 
   const generateMatchId = (match: any, index: number): string => {
@@ -101,6 +120,91 @@ export default function Home() {
       matchStatus = "upcoming";
     }
 
+    // DEBUG: Log pour comprendre le mismatch
+    if (matchStatus === 'live') {
+      console.log('MATCH LIVE:', match);
+      recentMatches.forEach(m => {
+        const teamsLive = [match.Team1?.toLowerCase(), match.Team2?.toLowerCase()].sort();
+        const teamsFinished = [m.Team1?.toLowerCase(), m.Team2?.toLowerCase()].sort();
+        const dateLive = new Date(match.DateTime);
+        const dateFinished = new Date(m.DateTime);
+        const sameDay = dateLive.getFullYear() === dateFinished.getFullYear() && dateLive.getMonth() === dateFinished.getMonth() && dateLive.getDate() === dateFinished.getDate();
+        if (
+          JSON.stringify(teamsLive) === JSON.stringify(teamsFinished) &&
+          m.Tournament?.toLowerCase() === match.Tournament?.toLowerCase() &&
+          m.BestOf === match.BestOf &&
+          sameDay
+        ) {
+          console.log('POTENTIAL FINISHED MATCH (FULL):', m);
+        }
+      });
+    }
+    // Déterminer si le match a un premier score officiel (dans recentResults)
+    let hasOfficialScore = false;
+    let team1Score = match.Team1Score;
+    let team2Score = match.Team2Score;
+    // Correction : Pour un match à venir, il ne faut JAMAIS afficher les scores de la source, même s'ils sont non-nuls
+    if (matchStatus === 'upcoming') {
+      team1Score = 0;
+      team2Score = 0;
+    }
+    if (matchStatus === 'live') {
+      const dateLive = new Date(match.DateTime);
+      console.log('DEBUG LIVE: looking for match', {
+        team1: match.Team1, team2: match.Team2, date: match.DateTime, tournoi: match.Tournament, BO: match.BestOf, recentMatches
+      });
+      const finished = recentMatches.find(
+        m => {
+          const teamsLive = [match.Team1?.toLowerCase().trim(), match.Team2?.toLowerCase().trim()].sort();
+          const teamsFinished = [m.Team1?.toLowerCase().trim(), m.Team2?.toLowerCase().trim()].sort();
+          const dateFinished = new Date(m.DateTime || m["DateTime UTC"]);
+          // On ne compare que l'année, le mois et le jour
+          const sameDay = dateLive.getFullYear() === dateFinished.getFullYear() && dateLive.getMonth() === dateFinished.getMonth() && dateLive.getDate() === dateFinished.getDate();
+          const matchDebug = {
+            teamsLive, teamsFinished,
+            tournoiLive: match.Tournament?.toLowerCase().trim(), tournoiFinished: m.Tournament?.toLowerCase().trim(),
+            bestOfLive: match.BestOf, bestOfFinished: m.BestOf,
+            sameDay,
+            dateLive: match.DateTime,
+            dateFinished: m.DateTime || m["DateTime UTC"]
+          };
+          if (
+            JSON.stringify(teamsLive) === JSON.stringify(teamsFinished)
+            && m.Tournament?.toLowerCase().trim() === match.Tournament?.toLowerCase().trim()
+            && sameDay
+            && (
+              m.BestOf == null || match.BestOf == null || m.BestOf == match.BestOf
+            )
+          ) {
+            console.log('DEBUG LIVE: MATCH FOUND', matchDebug);
+            return true;
+          } else {
+            console.log('DEBUG LIVE: NO MATCH', matchDebug);
+            return false;
+          }
+        }
+      );
+      if (finished) {
+        hasOfficialScore = true;
+        const getScore = (teamName: string) => {
+          if (finished.Team1?.toLowerCase().trim() === teamName.toLowerCase().trim()) return Number(finished.Team1Score);
+          if (finished.Team2?.toLowerCase().trim() === teamName.toLowerCase().trim()) return Number(finished.Team2Score);
+          return undefined;
+        };
+        team1Score = getScore(match.Team1);
+        team2Score = getScore(match.Team2);
+      } else {
+        // Pas de score officiel trouvé pour ce live : afficher 0-0
+        team1Score = 0;
+        team2Score = 0;
+      }
+    }
+    // Pour les matchs à venir, n'affiche un score que si un score officiel existe dans recentResults
+    if (matchStatus === 'upcoming' && !hasOfficialScore) {
+      team1Score = 0;
+      team2Score = 0;
+    }
+
     return {
       id: generateMatchId(match, index),
       teams: [
@@ -108,13 +212,13 @@ export default function Home() {
           id: match.Team1,
           name: match.Team1,
           logo: `/placeholder.svg`,
-          score: match.Team1Score
+          score: team1Score
         },
         {
           id: match.Team2,
           name: match.Team2,
           logo: `/placeholder.svg`,
-          score: match.Team2Score
+          score: team2Score
         }
       ] as [MatchTeam, MatchTeam],
       competition: {
@@ -162,55 +266,89 @@ export default function Home() {
             </Link>
           </div>
           
-          <div className="flex border-b border-dark-700 mb-6">
-            <button 
-              className={`px-4 py-2 text-sm font-medium border-b-2 ${activeTab === 'live' ? 'border-esport-500 text-esport-400' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant={activeTab === 'live' ? "default" : "outline"}
               onClick={() => setActiveTab('live')}
             >
-              En Direct
-            </button>
-            <button 
-              className={`px-4 py-2 text-sm font-medium border-b-2 ${activeTab === 'upcoming' ? 'border-esport-500 text-esport-400' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
+              En direct
+            </Button>
+            <Button
+              variant={activeTab === 'upcoming' ? "default" : "outline"}
               onClick={() => setActiveTab('upcoming')}
             >
-              À Venir
-            </button>
-            <button 
-              className={`px-4 py-2 text-sm font-medium border-b-2 ${activeTab === 'recent' ? 'border-esport-500 text-esport-400' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
+              À venir
+            </Button>
+            <Button
+              variant={activeTab === 'recent' ? "default" : "outline"}
               onClick={() => setActiveTab('recent')}
             >
               Récents
-            </button>
+            </Button>
+            <label className="ml-4 flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={spoiler} onChange={toggleSpoiler} className="accent-esport-400" />
+              <span className="text-sm">Spoiler</span>
+            </label>
           </div>
           
           <div className="grid gap-3">
             {activeTab === 'live' && liveMatches.length > 0 && liveMatches.map((match, index) => (
-              <MatchCard 
-                key={`live-${generateMatchId(match, index)}`} 
-                {...convertMatchToProps(match, index)} 
+              <MatchCard
+                key={`live-${generateMatchId(match, index)}`}
+                {...convertMatchToProps(match, index)}
+                spoiler={spoiler}
               />
             ))}
             
             {activeTab === 'upcoming' && !upcomingLoading && upcomingMatches
+              // On ne garde que les matchs dont la date de début est strictement dans le futur
+              .filter(match => {
+                const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
+                const now = new Date(); // Heure dynamique à chaque rendu
+                return matchDate > now;
+              })
               .filter(match => !liveMatches.some(liveMatch => 
                 liveMatch.Team1 === match.Team1 && 
                 liveMatch.Team2 === match.Team2 && 
                 liveMatch.DateTime === match.DateTime
               ))
               .map((match, index) => (
-                <MatchCard 
-                  key={`upcoming-${generateMatchId(match, index)}`} 
-                  {...convertMatchToProps(match, index)} 
+                <MatchCard
+                  key={`upcoming-${generateMatchId(match, index)}`}
+                  {...convertMatchToProps(match, index)}
+                  spoiler={spoiler}
                 />
               ))
             }
             
-            {activeTab === 'recent' && !recentLoading && recentMatches.map((match, index) => (
-              <MatchCard 
-                key={`recent-${generateMatchId(match, index)}`} 
-                {...convertMatchToProps(match, index)} 
-              />
-            ))}
+            {activeTab === 'recent' && !recentLoading && recentMatches.length > 0 && recentMatches
+              // Harmonisation Matches : filtrer les doublons récents (mêmes équipes, même jour, même tournoi, même BO)
+              .filter((match, idx, arr) => {
+                const teams = [match.Team1?.toLowerCase(), match.Team2?.toLowerCase()].sort();
+                const date = new Date(match.DateTime);
+                return arr.findIndex(m2 => {
+                  const teams2 = [m2.Team1?.toLowerCase(), m2.Team2?.toLowerCase()].sort();
+                  const date2 = new Date(m2.DateTime);
+                  return JSON.stringify(teams) === JSON.stringify(teams2)
+                    && m2.Tournament?.toLowerCase() === match.Tournament?.toLowerCase()
+                    && m2.BestOf === match.BestOf
+                    && date.getFullYear() === date2.getFullYear()
+                    && date.getMonth() === date2.getMonth()
+                    && date.getDate() === date2.getDate();
+                }) === idx;
+              })
+              .filter(match => match.Winner) // Afficher seulement les matchs terminés
+              .slice(0, 5) // Afficher les 5 plus récents après filtrage
+              .map((match, index) => {
+                return (
+                  <MatchCard
+                    key={`recent-${generateMatchId(match, index)}`}
+                    {...convertMatchToProps(match, index)}
+                    spoiler={spoiler}
+                  />
+                );
+              })
+            }
             
             {activeTab === 'live' && liveMatches.length === 0 && !upcomingLoading && (
               <div className="text-center py-8 text-gray-400">

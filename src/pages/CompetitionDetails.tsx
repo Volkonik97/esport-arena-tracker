@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,15 +10,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useLogo } from "@/hooks/useLogo";
 
 export default function CompetitionDetails() {
   const { id } = useParams();
   const { toast } = useToast();
-  
+
+  // Récupérer le logo de la compétition AVANT les useEffect !
+  const { data: competitionLogo, isLoading: isLogoLoading } = useLogo('tournament', id);
+
   // Directement passer l'ID du tournoi aux hooks pour filtrer à la source des données
-  const { data: upcomingMatches = [], isLoading: upcomingLoading, error: upcomingError } = useUpcomingMatches(10, id);
-  const { data: recentMatches = [], isLoading: recentLoading, error: recentError } = useRecentResults(10, id);
+  const { data: upcomingMatches = [], isLoading: upcomingLoading, error: upcomingError } = useUpcomingMatches(1000, { tournamentFilter: id });
+  const { data: recentMatches = [], isLoading: recentLoading, error: recentError } = useRecentResults(1000, { tournamentFilter: id });
+
+  // Pour le calendrier complet, on fusionne ces deux listes et on trie par date
+  const fullSchedule = [...upcomingMatches, ...recentMatches].sort((a, b) => new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime());
+
+  // DEBUG : Afficher toutes les dates présentes dans fullSchedule
+  console.log('DATES FULL SCHEDULE', fullSchedule.map(m => m.DateTime));
 
   // Afficher un message d'erreur si les deux requêtes ont échoué
   useEffect(() => {
@@ -30,7 +39,18 @@ export default function CompetitionDetails() {
         variant: "destructive",
       });
     }
-  }, [upcomingError, recentError, toast]);
+    // DEBUG: Affiche le nom du tournoi utilisé pour le logo
+    console.log('[LOGO DEBUG][CompetitionDetails] tournament id:', id);
+    // DEBUG: Affiche l'URL du logo utilisée par useLogo
+    console.log('[LOGO DEBUG][CompetitionDetails] logo from useLogo:', competitionLogo);
+    // DEBUG: Affiche l'URL du logo utilisée dans la balise <img>
+    const logoImg = document.querySelector('img[alt="Logo ' + id + '"]');
+    if (logoImg) {
+      console.log('[LOGO DEBUG][CompetitionDetails] logo src:', logoImg.getAttribute('src'));
+    } else {
+      console.log('[LOGO DEBUG][CompetitionDetails] logo img not found in DOM');
+    }
+  }, [upcomingError, recentError, id, toast, competitionLogo]);
 
   // Convertir les données de match au format MatchCard props
   const convertMatchToProps = (match: LeagueMatch) => ({
@@ -59,9 +79,91 @@ export default function CompetitionDetails() {
            "upcoming" as const
   });
 
+  // Fonction utilitaire : normalise et trie les mots d'une chaîne
+  function normalizeAndSortWords(str?: string) {
+    return (str || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/gi, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .sort()
+      .join(" ");
+  }
+
+  // DEBUG : log tous les tournois présents dans les matchs pour analyse
+  console.log('DEBUG COMPETITION ID:', id);
+  console.log('DEBUG TOURNAMENTS UPCOMING:', upcomingMatches.map(m => m.Tournament));
+  console.log('DEBUG TOURNAMENTS RECENT:', recentMatches.map(m => m.Tournament));
+
+  const normalizedId = normalizeAndSortWords(id);
+
+  // Pour les résultats récents, on ne garde qu'un seul résultat final par rencontre (même équipes, même date)
+  function deduplicateMatches(matches: LeagueMatch[]): LeagueMatch[] {
+    const seen = new Set<string>();
+    return matches.filter((m) => {
+      // On normalise noms et date (jour seulement)
+      const key = [
+        [m.Team1?.toLowerCase().trim(), m.Team2?.toLowerCase().trim()].sort().join("-"),
+        new Date(m.DateTime).toISOString().slice(0, 10)
+      ].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  // Filtre uniquement les résultats finaux pour les résultats récents
+  let filteredRecent = recentMatches.filter(
+    m => normalizeAndSortWords(m.Tournament) === normalizedId && m.Winner && m.Team1Score !== undefined && m.Team2Score !== undefined
+  );
+  filteredRecent = deduplicateMatches(filteredRecent);
+
+  // Correction : un match est "à venir" ou "en direct" UNIQUEMENT s'il n'a pas Winner ET scores non complets
+  const filteredUpcoming = upcomingMatches.filter(
+    m => normalizeAndSortWords(m.Tournament) === normalizedId && (!m.Winner && (m.Team1Score === undefined || m.Team2Score === undefined || m.Team1Score === 0 && m.Team2Score === 0))
+  );
+
   console.log("Competition ID:", id);
   console.log("Upcoming matches:", upcomingMatches);
   console.log("Recent matches:", recentMatches);
+
+  // Trouver dynamiquement la date du premier match réel dans le calendrier
+  // Si la date de début officielle existe et il y a des matchs ce jour-là, on l'utilise en priorité
+  const [tournamentStartDate, setTournamentStartDate] = useState<string | null>(null);
+  useEffect(() => {
+    async function fetchTournamentStart() {
+      if (!id) return;
+      try {
+        const year = new Date().getFullYear().toString();
+        const res = await fetch(`/api/tournaments?year=${year}`);
+        const allTournaments = await res.json();
+        const found = allTournaments.find((t: any) => t.Name === id);
+        if (found && found.DateStart) {
+          setTournamentStartDate(found.DateStart);
+        }
+      } catch (e) {
+        setTournamentStartDate(null);
+      }
+    }
+    fetchTournamentStart();
+  }, [id]);
+
+  let effectiveFirstMatchDate = null;
+  let matchesOnFirstDay: any[] = [];
+  if (tournamentStartDate) {
+    // Y a-t-il des matchs à la date de début officielle ?
+    matchesOnFirstDay = fullSchedule.filter(m => m.DateTime && m.DateTime.slice(0, 10) === tournamentStartDate.slice(0, 10));
+    if (matchesOnFirstDay.length > 0) {
+      effectiveFirstMatchDate = tournamentStartDate.slice(0, 10);
+    } else {
+      // Sinon, fallback sur la date la plus ancienne trouvée dans le calendrier
+      effectiveFirstMatchDate = fullSchedule.length > 0 ? fullSchedule.map(m => m.DateTime && m.DateTime.slice(0, 10)).filter(Boolean).sort()[0] : null;
+      matchesOnFirstDay = effectiveFirstMatchDate ? fullSchedule.filter(m => m.DateTime && m.DateTime.slice(0, 10) === effectiveFirstMatchDate) : [];
+    }
+  } else {
+    effectiveFirstMatchDate = fullSchedule.length > 0 ? fullSchedule.map(m => m.DateTime && m.DateTime.slice(0, 10)).filter(Boolean).sort()[0] : null;
+    matchesOnFirstDay = effectiveFirstMatchDate ? fullSchedule.filter(m => m.DateTime && m.DateTime.slice(0, 10) === effectiveFirstMatchDate) : [];
+  }
 
   return (
     <Layout>
@@ -79,7 +181,16 @@ export default function CompetitionDetails() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-lg bg-dark-800 flex items-center justify-center">
-                    <Trophy className="w-8 h-8 text-esport-500" />
+                    {competitionLogo ? (
+                      <img
+                        src={competitionLogo}
+                        alt={`Logo ${id}`}
+                        className="w-12 h-12 object-contain"
+                        onError={e => (e.currentTarget.src = '/placeholder.svg')}
+                      />
+                    ) : (
+                      <Trophy className="w-8 h-8 text-esport-500" />
+                    )}
                   </div>
                   <div>
                     <CardTitle className="text-2xl">{id}</CardTitle>
@@ -138,8 +249,8 @@ export default function CompetitionDetails() {
                     </CardContent>
                   </Card>
                 ))
-              ) : upcomingMatches && upcomingMatches.length > 0 ? (
-                upcomingMatches.map(match => (
+              ) : filteredUpcoming && filteredUpcoming.length > 0 ? (
+                filteredUpcoming.map(match => (
                   <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
                 ))
               ) : (
@@ -165,8 +276,8 @@ export default function CompetitionDetails() {
                     </CardContent>
                   </Card>
                 ))
-              ) : recentMatches && recentMatches.length > 0 ? (
-                recentMatches.map(match => (
+              ) : filteredRecent && filteredRecent.length > 0 ? (
+                filteredRecent.map(match => (
                   <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
                 ))
               ) : (

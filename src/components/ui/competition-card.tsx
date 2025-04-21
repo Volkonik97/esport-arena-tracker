@@ -43,10 +43,16 @@ export function CompetitionCard({ id, name, logo: defaultLogo, game, startDate, 
                 <img 
                   src={logo} 
                   alt={name} 
-                  className="w-10 h-10 object-contain"
+                  className="w-10 h-10 object-contain bg-dark-700 rounded border border-esport-700 shadow-md"
+                  style={{ backgroundColor: '#191724' }}
                   onError={(e) => {
-                    console.error(`[Logo] Failed to load image for ${name}:`, e);
-                    e.currentTarget.src = '/placeholder.svg';
+                    console.error(`[Logo] Failed to load image for ${name}:`, {
+                      url: logo,
+                      error: e,
+                    });
+                    console.log('Erreur de chargement de l\'image:', e);
+                    // TEMP: Ne remplace pas par le placeholder pour voir si l'image finit par charger
+                    // e.currentTarget.src = '/placeholder.svg';
                   }}
                 />
               )}

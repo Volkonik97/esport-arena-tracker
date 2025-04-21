@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CalendarClock } from "lucide-react";
@@ -25,9 +24,17 @@ export interface MatchProps {
   date: string;
   status: 'live' | 'upcoming' | 'finished';
   link?: string;
+  spoiler?: boolean;
 }
 
-export function MatchCard({ id, teams, competition, date, status, link }: MatchProps) {
+export function MatchCard({ id, teams, competition, date, status, link, spoiler }: MatchProps) {
+  // Log général pour debug : afficher les noms d'équipes reçus par MatchCard
+  console.log('[MatchCard] Equipes reçues :', teams.map(t => t.name));
+
+  // Cas spécial pour Talon
+  const team1IsTalon = teams[0].name === 'Talon';
+  const team2IsTalon = teams[1].name === 'Talon';
+  
   // Charger les logos
   const { data: team1Logo, isLoading: isLoading1 } = useLogo('team', teams[0].name, teams[0].logo);
   const { data: team2Logo, isLoading: isLoading2 } = useLogo('team', teams[1].name, teams[1].logo);
@@ -38,21 +45,33 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
   const [team2LogoError, setTeam2LogoError] = useState(false);
   const [compLogoError, setCompLogoError] = useState(false);
 
-  // Format the date
-  const matchDate = new Date(date);
-  const formattedDate = matchDate.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-  });
+  // Logo spécial pour Talon
+  const talonLogoUrl = 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png/revision/latest?cb=20210728214242&format=original';
   
-  const formattedTime = matchDate.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // Format the date (robust: handle invalid/empty)
+  let formattedDate = '';
+  let formattedTime = '';
+  if (date) {
+    // Forcément traiter la date comme UTC pour l'afficher à l'heure locale utilisateur
+    const matchDate = new Date(date + (date.match(/T|Z|\+/) ? '' : ' UTC'));
+    if (!isNaN(matchDate.getTime())) {
+      formattedDate = matchDate.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+      });
+      formattedTime = matchDate.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+  }
   
   // Determine if score should be shown
   const showScore = status === 'live' || status === 'finished';
   
+  // Déterminer si le score doit être masqué (spoiler actif et match terminé ou live)
+  const hideScore = spoiler && (status === 'finished' || status === 'live');
+
   // Déterminer les classes CSS en fonction du statut
   const statusClass = {
     upcoming: "text-gray-400",
@@ -62,6 +81,11 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
 
   // Fonction pour obtenir le logo correct pour une équipe
   const getTeamLogo = (index: 0 | 1) => {
+    // Si c'est Talon, utiliser directement l'URL spéciale
+    if ((index === 0 && team1IsTalon) || (index === 1 && team2IsTalon)) {
+      return talonLogoUrl;
+    }
+    
     const teamLogo = index === 0 ? team1Logo : team2Logo;
     const errorState = index === 0 ? team1LogoError : team2LogoError;
     const defaultLogo = teams[index].logo;
@@ -69,6 +93,14 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
     if (errorState) return '/placeholder.svg';
     return teamLogo || defaultLogo || '/placeholder.svg';
   };
+
+  // Affichage temporaire pour debug : afficher l'URL utilisée pour Talon
+  if (team1IsTalon) {
+    console.log('[MatchCard] Logo utilisé pour Talon (team1):', getTeamLogo(0));
+  }
+  if (team2IsTalon) {
+    console.log('[MatchCard] Logo utilisé pour Talon (team2):', getTeamLogo(1));
+  }
 
   return (
     <Link to={link || `/matches/${id}`} className="block">
@@ -81,15 +113,28 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
                 En direct
               </span>
             )}
-            {status === 'upcoming' && (
+            {status === 'upcoming' && formattedDate && formattedTime && (
               <span className="text-gray-400 text-sm flex items-center gap-1">
                 <CalendarClock className="h-4 w-4" />
                 {formattedDate} - {formattedTime}
               </span>
             )}
-            {status === 'finished' && (
-              <span className="text-gray-500 text-sm uppercase tracking-wider font-medium">
-                Terminé
+            {status === 'live' && formattedDate && formattedTime && (
+              <span className="text-red-400 text-sm flex items-center gap-1">
+                <CalendarClock className="h-4 w-4" />
+                {formattedDate} - {formattedTime}
+              </span>
+            )}
+            {status === 'finished' && formattedDate && (
+              <span className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-900/70 text-xs text-green-400 font-semibold border border-green-900 uppercase tracking-wide">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" className="inline mr-1"><circle cx="10" cy="10" r="10" fill="#22c55e"/><path d="M6 10.5l2.5 2.5 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Terminé
+                </span>
+                <span className="text-gray-400 text-sm flex items-center gap-1">
+                  <CalendarClock className="h-4 w-4" />
+                  {formattedDate}
+                </span>
               </span>
             )}
           </div>
@@ -131,11 +176,15 @@ export function MatchCard({ id, teams, competition, date, status, link }: MatchP
             status === 'finished' && "text-gray-300"
           )}>
             {showScore ? (
-              <>
-                <span>{teams[0].score}</span>
-                <span className="text-gray-600">:</span>
-                <span>{teams[1].score}</span>
-              </>
+              hideScore ? (
+                <span className="italic text-gray-500">Spoiler</span>
+              ) : (
+                <>
+                  <span>{teams[0].score}</span>
+                  <span className="text-gray-600">:</span>
+                  <span>{teams[1].score}</span>
+                </>
+              )
             ) : (
               <span className="text-sm font-medium text-gray-600">VS</span>
             )}

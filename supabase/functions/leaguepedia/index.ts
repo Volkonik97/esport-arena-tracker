@@ -70,23 +70,29 @@ serve(async (req) => {
   }
 
   // 3) Helper pour appeler Leaguepedia + logging raw + gestion d'erreur
-  async function lpFetch(qs: URLSearchParams) {
+  async function lpFetch(qs: URLSearchParams, testMode: boolean = false) {
+    // En testMode, forcer limit=1 et retirer la jointure
+    if (testMode) {
+      qs.set('limit', '1');
+      qs.delete('join_on');
+      qs.delete('tables');
+      qs.set('tables', 'MatchSchedule');
+      qs.set('fields', 'MatchSchedule.Team1,MatchSchedule.Team2,MatchSchedule.OverviewPage,MatchSchedule.DateTime_UTC,MatchSchedule.Tournament,MatchSchedule.BestOf');
+      qs.set('where', 'MatchSchedule.DateTime_UTC>NOW()');
+    }
     const url = `${LEAGUEPEDIA_API_URL}?${qs.toString()}`;
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 5000);
 
     try {
       console.log("[LP] Sending request to:", url);
-      
       const resp = await fetch(url, {
         signal: controller.signal,
         headers: DEFAULT_HEADERS
       });
       clearTimeout(tid);
-
       const raw = await resp.text();
       console.log("[LP RAW]", raw);
-
       let json: any;
       try {
         json = JSON.parse(raw);
@@ -94,17 +100,20 @@ serve(async (req) => {
         console.error("[LP PARSE FAILED]", raw);
         throw e;
       }
-
       if (json.error) {
         console.error("[LP API ERROR]", json.error);
         return { error: json.error, cargoquery: [] };
       }
-
       return json;
     } catch (e) {
       clearTimeout(tid);
       console.error("[LP FETCH ERROR]", e.message);
-      return { error: { message: e.message }, cargoquery: [] };
+      return {
+        error: {
+          message: e.message
+        },
+        cargoquery: []
+      };
     }
   }
 
@@ -262,37 +271,159 @@ serve(async (req) => {
       });
     }
 
-    // 5) Si on veut une requête directe de matchs à venir (format exact demandé)
-    if (params.directMatchQuery === true) {
-      console.log("[LP] Using direct match query approach");
-      
-      // Construire l'URL exactement comme suggéré
-      const matchQs = new URLSearchParams({
+    // 5) Si on demande les infos d'un tournoi
+    if (typeof params.tournamentName === "string") {
+      console.log(`[LP] Fetching tournament info for: ${params.tournamentName}`);
+      const tourQs = new URLSearchParams({
         action: "cargoquery",
         format: "json",
         formatversion: "2",
-        tables: "MatchScheduleGame=MSG,MatchSchedule=MS",
-        join_on: "MSG.MatchId=MS.MatchId",
-        fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC=DateTime,MS.Tournament,MS.BestOf",
-        where: "MS.DateTime_UTC>NOW()",
-        order_by: "MS.DateTime_UTC",
-        limit: params.limit || "5"
+        tables: "Tournaments",
+        fields: "Name,OverviewPage,Region,League",
+        where: `Name=\"${params.tournamentName}\"`,
+        limit: "1"
       });
-
-      if (params.tournamentFilter) {
-        matchQs.set("where", `MS.DateTime_UTC>NOW() AND MS.Tournament="${params.tournamentFilter}"`);
-      }
-
-      console.log("[LP] Direct match query params:", matchQs.toString());
-      const json = await lpFetch(matchQs);
-      
+      const json = await lpFetch(tourQs);
       return new Response(JSON.stringify(json), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
-    // 6) Si on veut les prochains matchs (format demandé par l'utilisateur)
+    // 6) Si on demande une URL directe
+    if (typeof params.directUrl === "string") {
+      console.log("[LP] Processing direct URL request:", params.directUrl);
+      
+      try {
+        const response = await fetch(params.directUrl, {
+          headers: DEFAULT_HEADERS
+        });
+        
+        if (!response.ok) {
+          console.error(`[LP] Direct URL request failed: ${response.status} ${response.statusText}`);
+          throw new Error(`Direct URL request failed with status ${response.status}`);
+        }
+        
+        const json = await response.json();
+        console.log("[LP] Direct URL response received");
+        
+        return new Response(JSON.stringify(json), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      } catch (error) {
+        console.error("[LP] Error fetching direct URL:", error);
+        return new Response(JSON.stringify({
+          error: error.message,
+          cargoquery: []
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // 7) Si on demande les matchs directs
+    if (params.directMatchQuery === true) {
+      console.log("[LP] Trying match query with NO date filter (DEBUG)");
+      const altQs = new URLSearchParams({
+        action: "cargoquery",
+        format: "json",
+        formatversion: "2",
+        tables: "MatchSchedule",
+        fields: "Team1,Team2,OverviewPage,DateTime_UTC,Tournament,BestOf",
+        order_by: "DateTime_UTC",
+        limit: params.limit || "50"
+      });
+      if (params.tournamentFilter) {
+        altQs.set("where", `Tournament=\"${params.tournamentFilter}\"`);
+      }
+      console.log("[LP] No-date match query params:", altQs.toString());
+      let json = await lpFetch(altQs);
+      if (json.error && json.error.code && json.error.code.includes('MWException')) {
+        console.warn('[LP] MWException detected, fallback to legacy');
+        json = await handleLegacyMatchRequest(params);
+      }
+      // DEBUG: Logguer les 5 premiers résultats bruts
+      if (json.cargoquery && Array.isArray(json.cargoquery)) {
+        console.log('[LP DEBUG] First 5 raw matches:', JSON.stringify(json.cargoquery.slice(0,5), null, 2));
+        const now = new Date();
+        const futureMatches = json.cargoquery.filter(item => {
+          const dt = item.title.DateTime_UTC;
+          return dt && new Date(dt) > now;
+        });
+        // Si aucun match à venir, retourner tous les résultats bruts pour debug côté client
+        if (futureMatches.length === 0) {
+          console.warn('[LP DEBUG] No future matches found, returning all raw results');
+          return new Response(JSON.stringify(json), {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json"
+            }
+          });
+        }
+        // Sinon, ne retourner que les matchs à venir
+        json.cargoquery = futureMatches;
+      }
+      return new Response(JSON.stringify(json), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      });
+    }
+
+    // 8) Si on veut le planning d'un tournoi spécifique (fallback sans jointure)
+    if (typeof params.tournamentName === "string") {
+      console.log(`[LP] Fetching schedule for tournament (fallback): ${params.tournamentName}`);
+      // 1. Chercher l'OverviewPage du tournoi
+      const tourQs = new URLSearchParams({
+        action: "cargoquery",
+        format: "json",
+        formatversion: "2",
+        tables: "Tournaments",
+        fields: "OverviewPage",
+        where: `Name=\"${params.tournamentName}\"`,
+        limit: "1"
+      });
+      const tourJson = await lpFetch(tourQs);
+      const overviewPage = tourJson?.cargoquery?.[0]?.title?.OverviewPage;
+      if (!overviewPage) {
+        console.warn(`[LP] Tournament not found: ${params.tournamentName}`);
+        return new Response(JSON.stringify({ error: 'Tournament not found', cargoquery: [] }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      // 2. Chercher les matchs dans MatchSchedule filtrés sur OverviewPage
+      const matchQs = new URLSearchParams({
+        action: "cargoquery",
+        format: "json",
+        formatversion: "2",
+        tables: "MatchSchedule",
+        fields: "DateTime_UTC,Team1,Team2,OverviewPage",
+        where: `OverviewPage=\"${overviewPage}\"`,
+        order_by: "DateTime_UTC",
+        limit: params.limit || "50"
+      });
+      console.log("[LP] Tournament schedule (no join) query params:", matchQs.toString());
+      let json = await lpFetch(matchQs);
+      if (json.error && json.error.code && json.error.code.includes('MWException')) {
+        console.warn('[LP] MWException detected, fallback to legacy');
+        json = await handleLegacyMatchRequest(params);
+      }
+      return new Response(JSON.stringify(json), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      });
+    }
+
+    // 9) Si on veut les prochains matchs (format demandé par l'utilisateur)
     if (params.upcomingMatches === true) {
       console.log("[LP] Fetching upcoming matches with new format");
       
@@ -316,7 +447,7 @@ serve(async (req) => {
 
       console.log("[LP] Upcoming matches query:", matchQs.toString());
       const json = await lpFetch(matchQs);
-      
+
       if (json.error || !json.cargoquery || json.cargoquery.length === 0) {
         console.error("[LP] Error or no results from upcoming matches query, trying backup method");
         // Si la requête échoue, essayer une autre méthode
@@ -329,7 +460,7 @@ serve(async (req) => {
       });
     }
 
-    // 7) Si on reçoit directement des paramètres de requête standard (action, format, tables, etc.)
+    // 10) Si on reçoit directement des paramètres de requête standard (action, format, tables, etc.)
     if (params.action === "cargoquery") {
       console.log("[LP] Processing direct CargoQuery params");
       
@@ -355,7 +486,7 @@ serve(async (req) => {
       });
     }
 
-    // 8) Sinon, on gère la requête de matchs avec l'ancienne format
+    // 11) Sinon, on gère la requête de matchs avec l'ancienne format
     return await handleLegacyMatchRequest(params);
     
   } catch (e: any) {

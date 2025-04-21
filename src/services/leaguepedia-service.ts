@@ -176,79 +176,65 @@ function cleanImageUrl(url: string): string {
 }
 
 /**
- * Récupère l'URL du logo d'une équipe depuis Leaguepedia
+ * Récupère l'URL du logo d'une équipe depuis Leaguepedia en utilisant l'API pageimages
  */
 export async function getTeamLogoUrl(teamName: string): Promise<string | null> {
   try {
-    // Cas spéciaux connus directement
-    const directMappings: Record<string, string> = {
-      "Karmine Corp": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png?format=original",
-      "Rogue": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original",
-      "Talon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original",
-      "Rogue (European Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png?format=original",
-      "TALON (Hong Kong Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png?format=original"
+    // Cas spéciaux pour les équipes problématiques
+    const specialCases: Record<string, string> = {
+      "Talon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png",
+      "TALON (Hong Kong Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png",
+      // Cas spécial pour Lyon
+      "LYON (2024 American Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/01/LYON_%282024_American_Team%29logo_profile.png/revision/latest/scale-to-width-down/220?cb=20250109185841",
+      "Lyon (2024 American Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/01/LYON_%282024_American_Team%29logo_profile.png/revision/latest/scale-to-width-down/220?cb=20250109185841",
+      "Lyon": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/01/LYON_%282024_American_Team%29logo_profile.png/revision/latest/scale-to-width-down/220?cb=20250109185841",
+      "LYON": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/01/LYON_%282024_American_Team%29logo_profile.png/revision/latest/scale-to-width-down/220?cb=20250109185841",
+      // Cas spécial pour Rogue
+      "Rogue": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png/revision/latest/scale-to-width-down/220?cb=20231125191715",
+      "ROGUE": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png/revision/latest/scale-to-width-down/220?cb=20231125191715",
+      "Rogue (European Team)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png/revision/latest/scale-to-width-down/220?cb=20231125191715",
+      "ROGUE (EUROPEAN TEAM)": "https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a4/Rogue_%28European_Team%29logo_square.png/revision/latest/scale-to-width-down/220?cb=20231125191715",
     };
     
-    if (directMappings[teamName]) {
-      console.log(`[Leaguepedia] Using direct mapping for ${teamName}: ${directMappings[teamName]}`);
-      return directMappings[teamName];
+    if (specialCases[teamName]) {
+      console.log(`[Leaguepedia][DEBUG] Cas spécial utilisé pour ${teamName} : ${specialCases[teamName]}`);
+      return cleanImageUrl(specialCases[teamName]);
     }
     
-    // Générer toutes les variantes possibles du nom
-    const variants = generateTeamNameVariants(teamName);
-    console.log(`[Leaguepedia] Searching logo for "${teamName}"`);
-    console.log(`[Leaguepedia] Generated variants:`, variants);
+    console.log(`[Leaguepedia] Searching logo for "${teamName}" using pageimages API`);
     
-    // Essayer chaque variante
-    for (const variant of variants) {
-      const filenames = generatePossibleFilenames(variant);
-      
-      // Essayer chaque format de nom de fichier possible
-      for (const filename of filenames) {
-        try {
-          console.log(`[Leaguepedia] Trying filename: ${filename}`);
-          const params = new URLSearchParams({
-            action: 'query',
-            format: 'json',
-            titles: `File:${filename}`,
-            prop: 'imageinfo',
-            iiprop: 'url|timestamp',
-            origin: '*'
-          });
-
-          const response = await fetch(`${LEAGUEPEDIA_API_URL}?${params}`, {
-            headers: {
-              'Accept': 'application/json'
-            }
-          });
-          
-          if (!response.ok) {
-            console.warn(`[Leaguepedia] API returned ${response.status} for ${filename}`);
-            continue;
-          }
-
-          const data = await response.json();
-          const pages = data.query?.pages;
-          if (!pages) continue;
-
-          const pageId = Object.keys(pages)[0];
-          if (pageId === '-1') continue;
-
-          const imageInfo: ImageInfo = pages[pageId]?.imageinfo?.[0];
-          if (!imageInfo?.url) continue;
-
-          const finalUrl = cleanImageUrl(imageInfo.url);
-          console.log(`[Leaguepedia] Found logo for ${teamName}: ${finalUrl}`);
-          return finalUrl;
-
-        } catch (error) {
-          console.warn(`[Leaguepedia] Failed to fetch ${filename}:`, error);
-          continue;
-        }
+    // Utiliser axios pour la requête
+    const response = await fetch(`${LEAGUEPEDIA_API_URL}?${new URLSearchParams({
+      action: 'query',
+      format: 'json',
+      titles: teamName,
+      prop: 'pageimages',
+      piprop: 'original',
+      origin: '*'
+    })}`);
+    
+    if (!response.ok) {
+      console.warn(`[Leaguepedia] API returned ${response.status} for ${teamName}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const pages = data.query?.pages;
+    if (!pages) return null;
+    
+    const page = Object.values(pages)[0] as any;
+    
+    if (page.original) {
+      const logoUrl = page.original.source;
+      console.log(`[Leaguepedia] Found logo for ${teamName}: ${logoUrl}`);
+      // Ajout log spécifique pour Lyon
+      if (/lyon/i.test(teamName)) {
+        console.log(`[Leaguepedia][DEBUG] Pour LYON, URL trouvée: ${logoUrl}`);
       }
+      return cleanImageUrl(logoUrl);
     }
-
-    // Si nous n'avons pas trouvé de logo, essayons de chercher directement par équipe
+    
+    // Si nous n'avons pas trouvé de logo, essayons avec le modèle TeamPart
     try {
       console.log(`[Leaguepedia] Attempting to search team directly: ${teamName}`);
       // Essayer une requête directe avec le modèle TeamPart
@@ -260,10 +246,10 @@ export async function getTeamLogoUrl(teamName: string): Promise<string | null> {
         origin: '*'
       });
 
-      const response = await fetch(`${LEAGUEPEDIA_API_URL}?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        const html = data.parse?.text?.['*'];
+      const teamPartResponse = await fetch(`${LEAGUEPEDIA_API_URL}?${params}`);
+      if (teamPartResponse.ok) {
+        const teamPartData = await teamPartResponse.json();
+        const html = teamPartData.parse?.text?.['*'];
         
         // Extraire l'URL de l'image si elle existe dans la réponse
         if (html && typeof html === 'string') {
@@ -278,12 +264,11 @@ export async function getTeamLogoUrl(teamName: string): Promise<string | null> {
     } catch (error) {
       console.warn(`[Leaguepedia] Failed to use TeamPart template:`, error);
     }
-
+    
     console.warn(`[Leaguepedia] No logo found for team: ${teamName}`);
     return null;
-
   } catch (error) {
-    console.error('[Leaguepedia] Error fetching team logo:', error);
+    console.error(`[Leaguepedia] Error fetching logo for ${teamName}:`, error);
     return null;
   }
 }

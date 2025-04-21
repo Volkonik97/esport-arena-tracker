@@ -1,118 +1,44 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { CompetitionCard } from "@/components/ui/competition-card";
 import { Button } from "@/components/ui/button";
 import { Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
-
-// Mock data for competitions
-const allCompetitions = [
-  {
-    id: "comp1",
-    name: "LEC Spring 2025",
-    game: "League of Legends",
-    startDate: "2025-01-10",
-    endDate: "2025-05-20",
-    status: "ongoing" as const,
-    prize: "€250,000",
-  },
-  {
-    id: "comp2",
-    name: "LCS Spring 2025",
-    game: "League of Legends",
-    startDate: "2025-01-15",
-    endDate: "2025-04-25",
-    status: "ongoing" as const,
-    prize: "$200,000",
-  },
-  {
-    id: "comp3",
-    name: "VCT Americas 2025",
-    game: "Valorant",
-    startDate: "2025-03-01",
-    endDate: "2025-06-15",
-    status: "ongoing" as const,
-    prize: "$500,000",
-  },
-  {
-    id: "comp4",
-    name: "LCK Spring 2025",
-    game: "League of Legends",
-    startDate: "2025-01-10",
-    endDate: "2025-04-10",
-    status: "finished" as const,
-    prize: "₩400,000,000",
-  },
-  {
-    id: "comp5",
-    name: "IEM Cologne 2025",
-    game: "CS2",
-    startDate: "2025-07-15",
-    endDate: "2025-07-28",
-    status: "upcoming" as const,
-    prize: "$1,000,000",
-  },
-  {
-    id: "comp6",
-    name: "PGL Major Stockholm 2025",
-    game: "CS2",
-    startDate: "2025-10-01",
-    endDate: "2025-10-14",
-    status: "upcoming" as const,
-    prize: "$2,000,000",
-  },
-  {
-    id: "comp7",
-    name: "The International 2025",
-    game: "Dota 2",
-    startDate: "2025-08-15",
-    endDate: "2025-08-30",
-    status: "upcoming" as const,
-    prize: "$30,000,000+",
-  },
-  {
-    id: "comp8",
-    name: "Worlds 2025",
-    game: "League of Legends",
-    startDate: "2025-09-25",
-    endDate: "2025-11-05",
-    status: "upcoming" as const,
-    prize: "$2,500,000",
-  },
-  {
-    id: "comp9",
-    name: "VALORANT Champions 2025",
-    game: "Valorant",
-    startDate: "2025-08-31",
-    endDate: "2025-09-19",
-    status: "upcoming" as const,
-    prize: "$1,000,000",
-  },
-];
+import { fetchLeagueTournaments, Tournament } from '@/services/tournaments-service';
 
 // Filter options
 const games = ["Tous", "League of Legends", "Valorant", "CS2", "Dota 2"];
 const statuses = ["Tous", "En cours", "À venir", "Terminés"];
 
 export default function Competitions() {
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGame, setSelectedGame] = useState("Tous");
-  const [selectedStatus, setSelectedStatus] = useState("Tous");
+  const [selectedStatus, setSelectedStatus] = useState("En cours");
   const [filtersVisible, setFiltersVisible] = useState(false);
-  
+
+  useEffect(() => {
+    fetchLeagueTournaments('2025').then((data) => {
+      // On filtre pour ne garder que les compétitions ayant une date de début définie
+      setTournaments(data.filter(t => t.DateStart));
+      setLoading(false);
+    });
+  }, []);
+
   // Filter competitions based on search term and filters
-  const filteredCompetitions = allCompetitions.filter(competition => {
-    const matchesSearch = competition.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesGame = selectedGame === "Tous" || competition.game === selectedGame;
+  const filteredCompetitions = tournaments.filter(competition => {
+    const matchesSearch = competition.Name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesGame = selectedGame === "Tous" || competition.League === selectedGame;
     
     let matchesStatus = true;
-    if (selectedStatus === "En cours") matchesStatus = competition.status === "ongoing";
-    if (selectedStatus === "À venir") matchesStatus = competition.status === "upcoming";
-    if (selectedStatus === "Terminés") matchesStatus = competition.status === "finished";
+    if (selectedStatus === "En cours") matchesStatus = new Date(competition.DateStart) <= new Date() && new Date(competition.Date) > new Date();
+    if (selectedStatus === "À venir") matchesStatus = new Date(competition.DateStart) > new Date();
+    if (selectedStatus === "Terminés") matchesStatus = new Date(competition.Date) < new Date();
     
     return matchesSearch && matchesGame && matchesStatus;
   });
-  
+
   return (
     <Layout>
       <div className="container mx-auto px-4 lg:px-8 py-6">
@@ -182,29 +108,42 @@ export default function Competitions() {
           )}
         </div>
         
-        {/* Competitions grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCompetitions.map(competition => (
-            <CompetitionCard key={competition.id} {...competition} />
-          ))}
-          
-          {filteredCompetitions.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-400">Aucune compétition trouvée avec les filtres actuels.</p>
-              <Button 
-                variant="link" 
-                className="text-esport-400 mt-2"
-                onClick={() => {
-                  setSearchTerm("");
-                  setSelectedGame("Tous");
-                  setSelectedStatus("Tous");
-                }}
-              >
-                Réinitialiser les filtres
-              </Button>
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div>Chargement des compétitions...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCompetitions.map((comp) => (
+              <CompetitionCard
+                key={comp.Name}
+                id={comp.Name}
+                name={comp.Name}
+                logo={undefined}
+                game="League of Legends"
+                startDate={comp.DateStart}
+                endDate={comp.Date}
+                status={new Date(comp.Date) < new Date() ? 'finished' : (new Date(comp.DateStart) > new Date() ? 'upcoming' : 'ongoing')}
+                prize={comp.Prizepool ? `${comp.Prizepool} ${comp.Currency}` : undefined}
+              />
+            ))}
+            
+            {filteredCompetitions.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-400">Aucune compétition trouvée avec les filtres actuels.</p>
+                <Button 
+                  variant="link" 
+                  className="text-esport-400 mt-2"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedGame("Tous");
+                    setSelectedStatus("Tous");
+                  }}
+                >
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   );

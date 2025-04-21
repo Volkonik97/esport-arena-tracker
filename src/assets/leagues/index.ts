@@ -13,6 +13,9 @@ export const LEAGUE_LOGOS: Record<string, string> = {
   'LCK Spring 2025': '/leagues/lck.png',
   'LPL': '/leagues/lpl.png',
   'LPL Spring 2025': '/leagues/lpl.png',
+  'LCS': '/leagues/lcs.png',
+  'LCS Spring 2025': '/leagues/lcs.png',
   'Worlds': '/leagues/worlds.png',
+  'Worlds 2025': '/leagues/worlds.png',
   'MSI': '/leagues/msi.png',
 };
