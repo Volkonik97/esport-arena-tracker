@@ -14,14 +14,35 @@ export default function PlayerDetails() {
   const { data: player, isLoading } = useQuery({
     queryKey: ['player', id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get the player data
+      const { data: playerData, error: playerError } = await supabase
         .from('players')
-        .select('*, team:teamid (teamname, logo)')
+        .select('*')
         .eq('playerid', id)
         .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (playerError) throw playerError;
+      if (!playerData) return null;
+      
+      // If player has a teamid, fetch the team data separately
+      let teamData = null;
+      if (playerData.teamid) {
+        const { data: team, error: teamError } = await supabase
+          .from('teams')
+          .select('teamname, logo')
+          .eq('teamid', playerData.teamid)
+          .maybeSingle();
+          
+        if (!teamError && team) {
+          teamData = team;
+        }
+      }
+      
+      // Return player with team data
+      return {
+        ...playerData,
+        team: teamData
+      };
     }
   });
 
@@ -69,7 +90,7 @@ export default function PlayerDetails() {
               />
             ) : (
               <div className="w-32 h-32 rounded-full bg-dark-700 flex items-center justify-center">
-                <span className="text-4xl font-bold text-gray-400">{player.playername[0]}</span>
+                <span className="text-4xl font-bold text-gray-400">{player.playername?.[0]}</span>
               </div>
             )}
           </div>
@@ -77,7 +98,9 @@ export default function PlayerDetails() {
             <h1 className="text-3xl font-bold mb-2">{player.playername}</h1>
             {player.team && (
               <div className="flex items-center gap-2 mb-4">
-                <img src={player.team.logo} alt={player.team.teamname} className="w-6 h-6 object-contain" />
+                {player.team.logo && (
+                  <img src={player.team.logo} alt={player.team.teamname} className="w-6 h-6 object-contain" />
+                )}
                 <span className="text-lg text-gray-300">{player.team.teamname}</span>
               </div>
             )}
