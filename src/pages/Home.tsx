@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
@@ -110,7 +111,8 @@ export default function Home() {
     return '';
   };
 
-  const MATCH_DURATION_MINUTES = 120;
+  // Define MATCH_DURATION_MINUTES as a number
+  const MATCH_DURATION_MINUTES: number = 120;
 
   const liveMatchesBase = upcomingMatches.filter(match => {
     const matchDateStr = match.DateTime || match.DateTime_UTC || '';
@@ -121,7 +123,9 @@ export default function Home() {
       if (isNaN(matchDate.getTime())) return false;
       
       const now = new Date();
-      const matchEnd = new Date(matchDate.getTime() + (MATCH_DURATION_MINUTES * 60 * 1000));
+      // Explicitly convert to number to ensure type safety
+      const durationMs = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
+      const matchEnd = new Date(matchDate.getTime() + durationMs);
       return now >= matchDate && now <= matchEnd;
     } catch (error) {
       console.error('Error parsing date:', matchDateStr, error);

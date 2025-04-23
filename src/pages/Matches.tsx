@@ -86,7 +86,7 @@ export default function Matches() {
     });
   }, [queryClient]);
   
-  const MATCH_DURATION_MINUTES = 120;
+  const MATCH_DURATION_MINUTES: number = 120;
   
   const AUTO_LIVE_LEAGUES = [
     'LEC',
@@ -113,7 +113,8 @@ export default function Matches() {
       if (isNaN(matchDate.getTime())) return false;
       
       const now = new Date();
-      const matchEnd = new Date(matchDate.getTime() + (MATCH_DURATION_MINUTES * 60 * 1000));
+      const durationMs = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
+      const matchEnd = new Date(matchDate.getTime() + durationMs);
       return now >= matchDate && now <= matchEnd;
     } catch (error) {
       console.error('Error parsing date:', matchDateStr, error);
