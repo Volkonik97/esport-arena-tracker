@@ -133,15 +133,27 @@ export default function Matches() {
     if (!upcoming.length) return;
     const finished = recentMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase() && m.Winner);
     if (!finished.length) return;
-    const sortByDate = (a: any, b: any) => new Date(a.DateTime) - new Date(b.DateTime);
+    const sortByDate = (a: any, b: any) => new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime();
     upcoming.sort(sortByDate);
     finished.sort(sortByDate);
     const lastFinished = finished[finished.length - 1];
     const nextUpcoming = upcoming[0];
+    
+    // Get date values as numbers for comparison
+    const dateNextTime = new Date(nextUpcoming.DateTime).getTime();
+    const dateLastFinishedTime = new Date(lastFinished.DateTime).getTime();
+    
+    // Extract date parts for comparison (year, month, day)
     const dateNext = new Date(nextUpcoming.DateTime);
     const dateLastFinished = new Date(lastFinished.DateTime);
-    const sameDay = dateNext.getFullYear() === dateLastFinished.getFullYear() && dateNext.getMonth() === dateLastFinished.getMonth() && dateNext.getDate() === dateLastFinished.getDate();
-    if (lastFinished && nextUpcoming && dateLastFinished < dateNext && sameDay) {
+    
+    // Compare individual parts instead of direct comparison
+    const sameDay = 
+      dateNext.getFullYear() === dateLastFinished.getFullYear() && 
+      dateNext.getMonth() === dateLastFinished.getMonth() && 
+      dateNext.getDate() === dateLastFinished.getDate();
+    
+    if (lastFinished && nextUpcoming && dateLastFinishedTime < dateNextTime && sameDay) {
       const alreadyLive = liveMatchesBase.some(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
       if (!alreadyLive) {
         extraLiveMatches.push(nextUpcoming);
