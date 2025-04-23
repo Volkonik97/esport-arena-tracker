@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import Layout from "@/components/layout/Layout";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
@@ -113,8 +114,12 @@ export default function Matches() {
       if (isNaN(matchDate.getTime())) return false;
       
       const now = new Date();
+      // Calculate duration in milliseconds using safe numeric conversion
       const durationMs = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
-      const matchEnd = new Date(matchDate.getTime() + durationMs);
+      // Ensure we're dealing with numeric values for the date calculation
+      const matchEndTime = matchDate.getTime() + durationMs;
+      const matchEnd = new Date(matchEndTime);
+      
       return now >= matchDate && now <= matchEnd;
     } catch (error) {
       console.error('Error parsing date:', matchDateStr, error);
