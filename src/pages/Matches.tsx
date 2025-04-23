@@ -106,10 +106,19 @@ export default function Matches() {
 
   const liveMatchesBase = upcomingMatches.filter(match => {
     const matchDateStr = match.DateTime || match.DateTime_UTC || '';
-    const matchDate = new Date(matchDateStr);
-    const now = new Date();
-    const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
-    return now >= matchDate && now <= matchEnd;
+    if (!matchDateStr) return false;
+    
+    try {
+      const matchDate = new Date(matchDateStr);
+      if (isNaN(matchDate.getTime())) return false;
+      
+      const now = new Date();
+      const matchEnd = new Date(matchDate.getTime() + (MATCH_DURATION_MINUTES * 60 * 1000));
+      return now >= matchDate && now <= matchEnd;
+    } catch (error) {
+      console.error('Error parsing date:', matchDateStr, error);
+      return false;
+    }
   });
 
   const extraLiveMatches: any[] = [];
@@ -256,8 +265,18 @@ export default function Matches() {
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const upcomingMatches24h = upcomingMatchesFiltered.filter(match => {
-    const matchDate = new Date(match.DateTime || match.DateTime_UTC || '');
-    return matchDate > now && matchDate <= in24h;
+    const matchDateStr = match.DateTime || match.DateTime_UTC || '';
+    if (!matchDateStr) return false;
+    
+    try {
+      const matchDate = new Date(matchDateStr);
+      if (isNaN(matchDate.getTime())) return false;
+      
+      return matchDate > now && matchDate <= in24h;
+    } catch (error) {
+      console.error('Error parsing date:', matchDateStr, error);
+      return false;
+    }
   });
 
   const getFilteredMatches = () => {
