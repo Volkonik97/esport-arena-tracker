@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import Layout from "@/components/layout/Layout";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
@@ -114,9 +115,9 @@ export default function Matches() {
       
       const now = new Date();
       
-      const matchDateMs: number = matchDate.getTime();
-      const durationMs: number = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
-      const matchEndMs: number = matchDateMs + durationMs;
+      const matchDateMs = matchDate.getTime();
+      const durationMs = MATCH_DURATION_MINUTES * 60 * 1000;
+      const matchEndMs = matchDateMs + durationMs;
       const matchEnd = new Date(matchEndMs);
       
       return now >= matchDate && now <= matchEnd;

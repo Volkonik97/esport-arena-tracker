@@ -124,10 +124,10 @@ export default function Home() {
       
       const now = new Date();
       
-      // Ensure we're dealing with numeric values
-      const matchDateMs: number = matchDate.getTime();
-      const durationMs: number = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
-      const matchEndMs: number = matchDateMs + durationMs;
+      // Use primitive number values for all calculations
+      const matchDateMs = matchDate.getTime();
+      const durationMs = MATCH_DURATION_MINUTES * 60 * 1000;
+      const matchEndMs = matchDateMs + durationMs;
       const matchEnd = new Date(matchEndMs);
       
       return now >= matchDate && now <= matchEnd;
