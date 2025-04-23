@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Search, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ const navLinks = [
   { name: "Compétitions", path: "/competitions" },
   { name: "Équipes", path: "/teams" },
   { name: "Matchs", path: "/matches" },
+  { name: "Joueurs", path: "/players" },
 ];
 
 const gameLinks = [
@@ -74,7 +74,6 @@ export default function Navbar() {
         </div>
       </div>
       
-      {/* Mobile menu */}
       <div className={cn(
         "md:hidden bg-dark-900 pb-4 px-4",
         mobileMenuOpen ? "block animate-fade-in" : "hidden"
