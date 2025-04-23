@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CalendarClock } from "lucide-react";
@@ -28,8 +29,8 @@ export interface MatchProps {
 }
 
 export function MatchCard({ id, teams, competition, date, status, link, spoiler }: MatchProps) {
-  // Log pour debug : afficher les noms d'équipes reçus et la date par MatchCard
-  console.log('[MatchCard] Équipes reçues :', teams.map(t => t.name), 'Date reçue:', date);
+  // Débogage: afficher les noms d'équipes reçus et la date spécifique pour chaque MatchCard
+  console.log(`[MatchCard] Équipes reçues : ${teams.map(t => t.name)} Date reçue: ${date}`);
 
   // Cas spécial pour Talon
   const team1IsTalon = teams[0].name === 'Talon';
@@ -54,8 +55,13 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
   
   if (date && typeof date === 'string' && date !== 'undefined') {
     try {
+      // Débogage: afficher la date brute avant traitement
+      console.log(`[MatchCard] Traitement de la date: ${date}`);
+      
       // Forcément traiter la date comme UTC pour l'afficher à l'heure locale utilisateur
       const matchDate = new Date(date + (date.match(/T|Z|\+/) ? '' : ' UTC'));
+      
+      console.log(`[MatchCard] Date convertie: ${matchDate.toISOString()}`);
       
       if (!isNaN(matchDate.getTime())) {
         formattedDate = matchDate.toLocaleDateString('fr-FR', {
@@ -67,18 +73,20 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
           minute: '2-digit',
           hour12: false
         });
+        
+        console.log(`[MatchCard] Date formatée: ${formattedDate} - ${formattedTime}`);
       } else {
-        console.warn('[MatchCard] DateTime non valide:', date);
+        console.warn(`[MatchCard] DateTime non valide: ${date}`);
         formattedDate = '??';
         formattedTime = '--:--';
       }
     } catch (error) {
-      console.error('[MatchCard] Erreur de formatage de date:', error, 'pour la date:', date);
+      console.error(`[MatchCard] Erreur de formatage de date:`, error, `pour la date: ${date}`);
       formattedDate = '??';
       formattedTime = '--:--';
     }
   } else {
-    console.warn('[MatchCard] DateTime manquant ou invalide:', date);
+    console.warn(`[MatchCard] DateTime manquant ou invalide: ${date}`);
     formattedDate = '??';
     formattedTime = '--:--';
   }

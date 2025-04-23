@@ -52,17 +52,31 @@ export default function CompetitionDetails() {
   } = useUpcomingMatchesForTournament(overviewPage || "", new Date().toISOString().slice(0, 19).replace('T', ' '));
   const { data: recentMatches, isLoading: recentLoading } = useRecentResults(500, { tournamentFilter: id });
 
-  const normalizedUpcoming = upcomingMatches.map(m => ({
-    ...m,
-    DateTime: m.DateTime_UTC || m.DateTime || new Date().toISOString().slice(0, 19).replace('T', ' '),
-    Tournament: m.OverviewPage || m.Tournament,
-    Team1Score: Number(m.Team1Score),
-    Team2Score: Number(m.Team2Score)
-  }));
+  console.log('[DEBUG CompetitionDetails] Upcoming matches raw data:', upcomingMatches);
 
-  const fullSchedule = [...normalizedUpcoming, ...recentMatches].sort((a, b) => new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime());
+  const normalizedUpcoming = upcomingMatches.map(m => {
+    const matchDate = m.DateTime_UTC || m.DateTime || new Date().toISOString().slice(0, 19).replace('T', ' ');
+    console.log(`[DEBUG CompetitionDetails] Match normalisé: ${m.Team1} vs ${m.Team2}, date: ${matchDate}`);
+    
+    return {
+      ...m,
+      DateTime: matchDate,
+      Tournament: m.OverviewPage || m.Tournament,
+      Team1Score: Number(m.Team1Score),
+      Team2Score: Number(m.Team2Score)
+    };
+  });
 
-  console.log('DATES FULL SCHEDULE', fullSchedule.map(m => m.DateTime));
+  const fullSchedule = [...normalizedUpcoming, ...recentMatches].sort((a, b) => {
+    const dateA = new Date(a.DateTime).getTime();
+    const dateB = new Date(b.DateTime).getTime();
+    return dateA - dateB;
+  });
+
+  console.log('[DEBUG CompetitionDetails] DATES FULL SCHEDULE', fullSchedule.map(m => ({
+    teams: `${m.Team1} vs ${m.Team2}`,
+    date: m.DateTime
+  })));
 
   console.log('DEBUG COMPETITION ID:', id);
   console.log('DEBUG TOURNAMENTS UPCOMING:', normalizedUpcoming.map(m => m.Tournament));
@@ -163,11 +177,11 @@ export default function CompetitionDetails() {
 
   const convertMatchToProps = (match: LeagueMatch) => {
     console.log('[CompetitionDetails] convertMatchToProps input:', match);
-    const date = match.DateTime || match.DateTime_UTC || new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const date = match.DateTime_UTC || match.DateTime || new Date().toISOString().slice(0, 19).replace('T', ' ');
     const team1 = match.Team1 || '';
     const team2 = match.Team2 || '';
     
-    console.log('[ConvertMatchToProps] Match date:', date, 'for teams:', team1, team2);
+    console.log(`[ConvertMatchToProps] Match date: ${date}, pour teams: ${team1}, ${team2}`);
     
     return {
       id: `${team1 || 'empty'}-${team2 || 'empty'}-${date || Math.random().toString(36).slice(2)}`,
@@ -295,7 +309,10 @@ export default function CompetitionDetails() {
                     ))
                   ) : filteredUpcoming && filteredUpcoming.length > 0 ? (
                     filteredUpcoming.map(match => (
-                      <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
+                      <MatchCard 
+                        key={`${match.Team1}-${match.Team2}-${match.DateTime_UTC || match.DateTime}`} 
+                        {...convertMatchToProps(match)} 
+                      />
                     ))
                   ) : (
                     <Alert>
@@ -319,7 +336,10 @@ export default function CompetitionDetails() {
                     ))
                   ) : filteredRecent && filteredRecent.length > 0 ? (
                     filteredRecent.map(match => (
-                      <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
+                      <MatchCard 
+                        key={`${match.Team1}-${match.Team2}-${match.DateTime}`} 
+                        {...convertMatchToProps(match)} 
+                      />
                     ))
                   ) : (
                     <Alert>
