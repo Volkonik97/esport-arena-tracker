@@ -114,7 +114,7 @@ export default function Home() {
 
   const liveMatchesBase = upcomingMatches.filter(match => {
     const matchDateStr = match.DateTime || match.DateTime_UTC || '';
-    const matchDate = new Date(matchDateStr + (matchDateStr.match(/T|Z|\+/) ? '' : ' UTC'));
+    const matchDate = new Date(matchDateStr);
     const now = new Date();
     const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
     return now >= matchDate && now <= matchEnd;
@@ -150,7 +150,7 @@ export default function Home() {
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const upcomingMatches24h = upcomingMatchesFiltered.filter(match => {
-    const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
+    const matchDate = new Date(match.DateTime || match.DateTime_UTC || '');
     return matchDate > now && matchDate <= in24h;
   });
 
