@@ -72,7 +72,6 @@ const featuredCompetitions = [
   },
 ];
 
-// Ajout : Spoiler toggle
 function useSpoiler(defaultValue = true) {
   const [spoiler, setSpoiler] = useState(defaultValue);
   const toggleSpoiler = () => setSpoiler(v => !v);
@@ -80,31 +79,28 @@ function useSpoiler(defaultValue = true) {
 }
 
 export default function Home() {
-  // Ajoute un log global pour vérifier que Home.tsx est bien exécuté
   useEffect(() => {
     console.log('HOME COMPONENT MOUNTED');
   }, []);
 
   const [activeTab, setActiveTab] = useState<'live' | 'upcoming' | 'recent'>('live');
-  const [spoiler, toggleSpoiler] = useSpoiler(true); // Par défaut activé
-  // Harmonise le nombre de matchs pour avoir le même contexte que la page Matchs
+  const [spoiler, toggleSpoiler] = useSpoiler(true);
   const { data: upcomingMatches = [], isLoading: upcomingLoading } = useUpcomingMatches(50);
   const { data: recentMatches = [], isLoading: recentLoading } = useRecentResults(50);
-  
-  // Ajout debug pour voir ce que renvoie recentMatches brut
+
   console.log('DEBUG RECENT MATCHES RAW:', recentMatches);
-  
+
   const generateMatchId = (match: any, index: number): string => {
     return `${match.Team1}-${match.Team2}-${match.DateTime?.substring(0, 10) || ''}-${index}`;
   };
 
-  // --- LOGIQUE AVANCÉE POUR LIVE MATCH PAR LIGUE ---
   const AUTO_LIVE_LEAGUES = [
     'LEC',
     'LFL',
     'LTA North',
     'LPL'
   ];
+
   const getLeagueFromTournament = (tournament: string) => {
     if (!tournament) return '';
     if (tournament.includes('LEC')) return 'LEC';
@@ -113,13 +109,17 @@ export default function Home() {
     if (tournament.includes('LPL')) return 'LPL';
     return '';
   };
-  const MATCH_DURATION_MINUTES = 120; // 2 heures
+
+  const MATCH_DURATION_MINUTES = 120;
+
   const liveMatchesBase = upcomingMatches.filter(match => {
-    const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
+    const matchDateStr = match.DateTime || match.DateTime_UTC || '';
+    const matchDate = new Date(matchDateStr + (matchDateStr.match(/T|Z|\+/) ? '' : ' UTC'));
     const now = new Date();
     const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
     return now >= matchDate && now <= matchEnd;
   });
+
   const extraLiveMatches: any[] = [];
   AUTO_LIVE_LEAGUES.forEach(league => {
     const upcoming = upcomingMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
@@ -131,7 +131,6 @@ export default function Home() {
     finished.sort(sortByDate);
     const lastFinished = finished[finished.length - 1];
     const nextUpcoming = upcoming[0];
-    // Correction : n'activer "auto-live" QUE si le match terminé est le même jour ET avant le prochain match
     const dateNext = new Date(nextUpcoming.DateTime);
     const dateLastFinished = new Date(lastFinished.DateTime);
     const sameDay = dateNext.getFullYear() === dateLastFinished.getFullYear() && dateNext.getMonth() === dateLastFinished.getMonth() && dateNext.getDate() === dateLastFinished.getDate();
@@ -142,12 +141,12 @@ export default function Home() {
       }
     }
   });
+
   const liveMatches = [...liveMatchesBase, ...extraLiveMatches.filter(m => !liveMatchesBase.includes(m))];
-  // --- Filtrage des matchs à venir pour exclure ceux qui sont "live" ---
+
   const liveMatchIds = new Set(liveMatches.map(m => generateMatchId(m, 0)));
   const upcomingMatchesFiltered = upcomingMatches.filter((m, i) => !liveMatchIds.has(generateMatchId(m, i)));
-  
-  // Afficher uniquement les matchs à venir dans les 24h
+
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const upcomingMatches24h = upcomingMatchesFiltered.filter(match => {
@@ -169,7 +168,6 @@ export default function Home() {
       matchStatus = "upcoming";
     }
 
-    // DEBUG: Log pour comprendre le mismatch
     if (matchStatus === 'live') {
       console.log('MATCH LIVE:', match);
       recentMatches.forEach(m => {
@@ -188,15 +186,16 @@ export default function Home() {
         }
       });
     }
-    // Déterminer si le match a un premier score officiel (dans recentResults)
+
     let hasOfficialScore = false;
     let team1Score = match.Team1Score;
     let team2Score = match.Team2Score;
-    // Correction : Pour un match à venir, il ne faut JAMAIS afficher les scores de la source, même s'ils sont non-nuls
+
     if (matchStatus === 'upcoming') {
       team1Score = 0;
       team2Score = 0;
     }
+
     if (matchStatus === 'live') {
       const dateLive = new Date(match.DateTime);
       console.log('DEBUG LIVE: looking for match', {
@@ -207,7 +206,6 @@ export default function Home() {
           const teamsLive = [match.Team1?.toLowerCase().trim(), match.Team2?.toLowerCase().trim()].sort();
           const teamsFinished = [m.Team1?.toLowerCase().trim(), m.Team2?.toLowerCase().trim()].sort();
           const dateFinished = new Date(m.DateTime || m["DateTime UTC"]);
-          // On ne compare que l'année, le mois et le jour
           const sameDay = dateLive.getFullYear() === dateFinished.getFullYear() && dateLive.getMonth() === dateFinished.getMonth() && dateLive.getDate() === dateFinished.getDate();
           const matchDebug = {
             teamsLive, teamsFinished,
@@ -243,12 +241,11 @@ export default function Home() {
         team1Score = getScore(match.Team1);
         team2Score = getScore(match.Team2);
       } else {
-        // Pas de score officiel trouvé pour ce live : afficher 0-0
         team1Score = 0;
         team2Score = 0;
       }
     }
-    // Pour les matchs à venir, n'affiche un score que si un score officiel existe dans recentResults
+
     if (matchStatus === 'upcoming' && !hasOfficialScore) {
       team1Score = 0;
       team2Score = 0;
@@ -278,14 +275,13 @@ export default function Home() {
       status: matchStatus
     };
   };
-  
+
   console.log("Current matches data:", {
     upcoming: upcomingMatches,
     recent: recentMatches,
     live: liveMatches
   });
-  
-  // Pagination locale : limite à 5 matchs à venir par défaut, bouton "Afficher plus"
+
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const displayedUpcomingMatches = showAllUpcoming ? upcomingMatches24h : upcomingMatches24h.slice(0, 5);
 
@@ -392,7 +388,6 @@ export default function Home() {
             )}
             
             {activeTab === 'recent' && !recentLoading && recentMatches.length > 0 && recentMatches
-              // Harmonisation Matches : filtrer les doublons récents (mêmes équipes, même jour, même tournoi, même BO)
               .filter((match, idx, arr) => {
                 const teams = [match.Team1?.toLowerCase(), match.Team2?.toLowerCase()].sort();
                 const date = new Date(match.DateTime);
@@ -407,8 +402,8 @@ export default function Home() {
                     && date.getDate() === date2.getDate();
                 }) === idx;
               })
-              .filter(match => match.Winner) // Afficher seulement les matchs terminés
-              .slice(0, 5) // Afficher les 5 plus récents après filtrage
+              .filter(match => match.Winner)
+              .slice(0, 5)
               .map((match, index) => {
                 return (
                   <MatchCard

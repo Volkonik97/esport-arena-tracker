@@ -1,3 +1,4 @@
+
 import { useActiveTournaments } from "@/services/active-tournaments-service";
 import { useUpcomingMatchesForTournament } from "@/services/upcoming-matches-service";
 
@@ -9,7 +10,7 @@ export function useAllUpcomingMatches(year: string) {
 
   // Pour chaque tournoi, on récupère ses matchs à venir
   const matchesQueries = (tournaments || []).map(t =>
-    useUpcomingMatchesForTournament(t.OverviewPage, NOW_ISO, LIMIT)
+    useUpcomingMatchesForTournament(t.OverviewPage, NOW_ISO)
   );
 
   // Agrège tous les matchs (par compétition)

@@ -5,6 +5,7 @@ import axios from 'axios';
 
 export interface LeagueMatch {
   DateTime: string;
+  DateTime_UTC?: string;
   Team1: string;
   Team2: string;
   Tournament?: string;
@@ -12,6 +13,7 @@ export interface LeagueMatch {
   Winner?: string;
   Team1Score?: number;
   Team2Score?: number;
+  OverviewPage?: string;
 }
 
 interface MatchesQueryResult {

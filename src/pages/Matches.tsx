@@ -20,17 +20,14 @@ export default function Matches() {
     to: undefined
   });
   
-  // État pour gérer les filtres appliqués
   const [appliedFilters, setAppliedFilters] = useState({
     competition: "Tous",
     dateFrom: undefined as Date | undefined,
     dateTo: undefined as Date | undefined
   });
   
-  // Accès au queryClient pour invalider les requêtes
   const queryClient = useQueryClient();
   
-  // Utiliser les hooks avec les options de filtrage appliquées
   const { 
     data: upcomingMatches = [], 
     isLoading: upcomingLoading, 
@@ -51,7 +48,6 @@ export default function Matches() {
     dateTo: appliedFilters.dateTo
   });
   
-  // Fonction pour appliquer les filtres
   const applyFilters = useCallback(() => {
     setAppliedFilters({
       competition: selectedCompetition,
@@ -59,34 +55,28 @@ export default function Matches() {
       dateTo: dateRange.to
     });
     
-    // Invalider les requêtes pour forcer un rafraîchissement
     queryClient.invalidateQueries({ queryKey: ['upcoming-matches'] });
     queryClient.invalidateQueries({ queryKey: ['recent-results'] });
     
-    // Fermer le panneau des filtres
     setFiltersVisible(false);
     
-    // Notification
     toast({
       title: "Filtres appliqués",
       description: "Les résultats ont été mis à jour avec vos filtres.",
     });
   }, [selectedCompetition, dateRange, queryClient]);
   
-  // Fonction pour réinitialiser les filtres
   const resetFilters = useCallback(() => {
     setSearchTerm("");
     setSelectedCompetition("Tous");
     setDateRange({ from: undefined, to: undefined });
     
-    // Appliquer immédiatement les filtres réinitialisés
     setAppliedFilters({
       competition: "Tous",
       dateFrom: undefined,
       dateTo: undefined
     });
     
-    // Invalider les requêtes pour forcer un rafraîchissement
     queryClient.invalidateQueries({ queryKey: ['upcoming-matches'] });
     queryClient.invalidateQueries({ queryKey: ['recent-results'] });
     
@@ -96,12 +86,8 @@ export default function Matches() {
     });
   }, [queryClient]);
   
-  // --- LOGIQUE SYNCHRONISÉE AVEC Home.tsx ---
-  // Même logique pour déterminer les matchs en direct (durée réelle, ex: 2h)
-  const MATCH_DURATION_MINUTES = 120; // 2 heures
+  const MATCH_DURATION_MINUTES = 120;
   
-  // --- LOGIQUE AVANCÉE POUR LIVE MATCH PAR LIGUE ---
-  // Ligues concernées
   const AUTO_LIVE_LEAGUES = [
     'LEC',
     'LFL',
@@ -109,7 +95,6 @@ export default function Matches() {
     'LPL'
   ];
 
-  // Fonction utilitaire pour détecter la ligue à partir du nom de tournoi (OverviewPage)
   const getLeagueFromTournament = (tournament: string) => {
     if (!tournament) return '';
     if (tournament.includes('LEC')) return 'LEC';
@@ -119,54 +104,42 @@ export default function Matches() {
     return '';
   };
 
-  // Matches live normaux (par date)
   const liveMatchesBase = upcomingMatches.filter(match => {
-    const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
+    const matchDateStr = match.DateTime || match.DateTime_UTC || '';
+    const matchDate = new Date(matchDateStr + (matchDateStr.match(/T|Z|\+/) ? '' : ' UTC'));
     const now = new Date();
     const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
     return now >= matchDate && now <= matchEnd;
   });
 
-  // Ajout : live automatique pour les ligues sélectionnées
   const extraLiveMatches: any[] = [];
   AUTO_LIVE_LEAGUES.forEach(league => {
-    // 1. Récupérer tous les matchs à venir de cette ligue
     const upcoming = upcomingMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
     if (!upcoming.length) return;
-    // 2. Récupérer tous les matchs terminés de cette ligue
     const finished = recentMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase() && m.Winner);
     if (!finished.length) return;
-    // 3. Trier les deux listes par date croissante
     const sortByDate = (a: any, b: any) => new Date(a.DateTime) - new Date(b.DateTime);
     upcoming.sort(sortByDate);
     finished.sort(sortByDate);
-    // 4. Prendre le dernier match terminé
     const lastFinished = finished[finished.length - 1];
-    // 5. Prendre le prochain match à venir
     const nextUpcoming = upcoming[0];
-    // 6. Si le dernier match terminé est bien avant le prochain match à venir (et pas déjà live)
     const dateNext = new Date(nextUpcoming.DateTime);
     const dateLastFinished = new Date(lastFinished.DateTime);
     const sameDay = dateNext.getFullYear() === dateLastFinished.getFullYear() && dateNext.getMonth() === dateLastFinished.getMonth() && dateNext.getDate() === dateLastFinished.getDate();
     if (lastFinished && nextUpcoming && dateLastFinished < dateNext && sameDay) {
-      // Si aucun match de cette ligue n'est déjà live
       const alreadyLive = liveMatchesBase.some(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
       if (!alreadyLive) {
-        // On force le prochain match à passer live
         extraLiveMatches.push(nextUpcoming);
       }
     }
   });
 
-  // Fusionner les deux listes (en évitant les doublons)
   const liveMatches = [...liveMatchesBase, ...extraLiveMatches.filter(m => !liveMatchesBase.includes(m))];
 
-  // Générer un ID unique pour chaque match (identique à Home)
   const generateMatchId = (match: any, index: number): string => {
     return `${match.Team1}-${match.Team2}-${match.DateTime?.substring(0, 10) || ''}-${index}`;
   };
 
-  // Conversion des données de match en props pour MatchCard (copie exacte de Home.tsx)
   const convertMatchToProps = (match: any, index: number) => {
     let matchStatus: "upcoming" | "live" | "finished";
     if (match.Winner) {
@@ -181,7 +154,6 @@ export default function Matches() {
       matchStatus = "upcoming";
     }
 
-    // DEBUG: Log pour comprendre le mismatch
     if (matchStatus === 'live') {
       console.log('MATCH LIVE:', match);
       recentMatches.forEach(m => {
@@ -202,11 +174,10 @@ export default function Matches() {
         }
       });
     }
-    // Déterminer si le match a un premier score officiel (dans recentResults)
+
     let hasOfficialScore = false;
     let team1Score = match.Team1Score;
     let team2Score = match.Team2Score;
-    // Correction : Pour un match à venir, il ne faut JAMAIS afficher les scores de la source, même s'ils sont non-nuls
     if (matchStatus === 'upcoming') {
       team1Score = 0;
       team2Score = 0;
@@ -243,18 +214,15 @@ export default function Matches() {
         team1Score = getScore(match.Team1);
         team2Score = getScore(match.Team2);
       } else {
-        // Pas de score officiel trouvé pour ce live : afficher 0-0
         team1Score = 0;
         team2Score = 0;
       }
     }
-    // Pour les matchs à venir, n'affiche un score que si un score officiel existe dans recentResults
     if (matchStatus === 'upcoming' && !hasOfficialScore) {
       team1Score = 0;
       team2Score = 0;
     }
 
-    // DEBUG: log les noms d'équipe utilisés pour le logo
     console.log('[DEBUG LOGO TEAM NAME]', match.Team1, match.Team2);
 
     return {
@@ -281,20 +249,17 @@ export default function Matches() {
       status: matchStatus
     };
   };
-  
-  // --- Filtrage des matchs à venir pour exclure ceux qui sont "live" ---
+
   const liveMatchIds = new Set(liveMatches.map(m => generateMatchId(m, 0)));
   const upcomingMatchesFiltered = upcomingMatches.filter((m, i) => !liveMatchIds.has(generateMatchId(m, i)));
-  
-  // Filtrage dynamique : afficher uniquement les matchs à venir dans les 24h
+
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const upcomingMatches24h = upcomingMatchesFiltered.filter(match => {
     const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
     return matchDate > now && matchDate <= in24h;
   });
-  
-  // TEMP : désactive le filtre de date pour diagnostic
+
   const getFilteredMatches = () => {
     let matches: any[] = [];
     switch (activeTab) {
@@ -302,16 +267,14 @@ export default function Matches() {
         matches = liveMatches;
         break;
       case 'upcoming':
-        matches = upcomingMatches24h; // Utiliser upcomingMatches24h
+        matches = upcomingMatches24h;
         break;
       case 'recent':
         matches = recentMatches;
         break;
     }
-    // Appliquer les filtres de recherche par nom d'équipe et par compétition
     return matches.filter(match => {
       if (!searchTerm) return true;
-      // Filtre par compétition si sélectionnée (hors "Tous")
       if (selectedCompetition && selectedCompetition !== "Tous") {
         if (!match.Tournament || match.Tournament.toLowerCase().trim() !== selectedCompetition.toLowerCase().trim()) {
           return false;
@@ -322,11 +285,9 @@ export default function Matches() {
     });
   };
 
-  // Obtenir toutes les compétitions uniques de tous les matchs
   const allMatches = [...upcomingMatches, ...recentMatches];
   const competitions = ["Tous", ...new Set(allMatches.map(m => m.Tournament).filter(Boolean))];
 
-  // Fonction pour rendre un nom de compétition lisible
   const formatCompetitionName = (overviewPage: string) =>
     overviewPage.replace(/_/g, ' ').replace(/\//g, ' ');
 
@@ -339,11 +300,9 @@ export default function Matches() {
   console.log('[DEBUG competitions]', competitions);
   console.log('[DEBUG filteredMatches]', filteredMatches);
 
-  // Ajout : Spoiler toggle (même logique que Home.tsx)
   const [spoiler, setSpoiler] = useState(true);
   const toggleSpoiler = () => setSpoiler(v => !v);
 
-  // Pour standings, récupère l'OverviewPage du premier match à venir AFFICHÉ dans l'onglet "À venir"
   const overviewPageFromUpcoming = upcomingMatches && upcomingMatches.length > 0 ? upcomingMatches[0].Tournament : undefined;
 
   console.log('[DEBUG UPCOMING TOURNAMENTS]', upcomingMatches.map(m => m.Tournament));
@@ -354,7 +313,6 @@ export default function Matches() {
       <div className="container mx-auto px-4 lg:px-8 py-6">
         <h1 className="text-3xl font-bold mb-6">Matchs</h1>
         
-        {/* Onglets pour basculer entre les différentes catégories */}
         <div className="flex border-b border-dark-700 mb-6">
           <button 
             className={`px-4 py-2 text-sm font-medium border-b-2 ${activeTab === 'live' ? 'border-esport-500 text-esport-400' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
@@ -380,7 +338,6 @@ export default function Matches() {
           </label>
         </div>
         
-        {/* Recherche et filtres */}
         <div className="mb-8 space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -432,9 +389,7 @@ export default function Matches() {
           )}
         </div>
         
-        {/* Liste des matchs */}
         <div className="grid gap-4">
-          {/* Affichage des matchs selon l'onglet actif */}
           {(activeTab === 'live' && upcomingLoading) || 
            (activeTab === 'upcoming' && upcomingLoading) || 
            (activeTab === 'recent' && recentLoading) ? (

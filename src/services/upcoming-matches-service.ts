@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 
 export interface UpcomingMatch {
@@ -7,6 +8,7 @@ export interface UpcomingMatch {
   Team1Score: string;
   Team2Score: string;
   OverviewPage: string;
+  Tournament?: string; // Add this field for compatibility with the code using it
 }
 
 export async function fetchUpcomingMatchesForTournament(overviewPage: string, now: string): Promise<UpcomingMatch[]> {
@@ -14,7 +16,13 @@ export async function fetchUpcomingMatchesForTournament(overviewPage: string, no
   const response = await fetch(url);
   const data = await response.json();
   if (!data.cargoquery) return [];
-  return data.cargoquery.map((item: any) => item.title as UpcomingMatch);
+  
+  // Add Tournament field to each match for compatibility
+  return data.cargoquery.map((item: any) => {
+    const match = item.title as UpcomingMatch;
+    match.Tournament = match.OverviewPage; // Set Tournament to OverviewPage
+    return match;
+  });
 }
 
 export function useUpcomingMatchesForTournament(overviewPage: string, now: string) {
