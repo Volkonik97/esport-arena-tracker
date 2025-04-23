@@ -26,7 +26,6 @@ export default function CompetitionDetails() {
 
   const { data: tournaments = [], isLoading: tournamentsLoading } = useActiveTournaments("2025");
   const flatTournaments = tournaments.map((t: any) => t.title ?? t);
-  console.log('[DEBUG tournaments]', flatTournaments);
 
   function normalize(str: string) {
     return str
@@ -55,7 +54,7 @@ export default function CompetitionDetails() {
 
   const normalizedUpcoming = upcomingMatches.map(m => ({
     ...m,
-    DateTime: m.DateTime_UTC || m.DateTime,
+    DateTime: m.DateTime_UTC || m.DateTime || new Date().toISOString().slice(0, 19).replace('T', ' '),
     Tournament: m.OverviewPage || m.Tournament,
     Team1Score: Number(m.Team1Score),
     Team2Score: Number(m.Team2Score)
@@ -164,9 +163,12 @@ export default function CompetitionDetails() {
 
   const convertMatchToProps = (match: LeagueMatch) => {
     console.log('[CompetitionDetails] convertMatchToProps input:', match);
-    const date = match.DateTime || match.DateTime_UTC || undefined;
+    const date = match.DateTime || match.DateTime_UTC || new Date().toISOString().slice(0, 19).replace('T', ' ');
     const team1 = match.Team1 || '';
     const team2 = match.Team2 || '';
+    
+    console.log('[ConvertMatchToProps] Match date:', date, 'for teams:', team1, team2);
+    
     return {
       id: `${team1 || 'empty'}-${team2 || 'empty'}-${date || Math.random().toString(36).slice(2)}`,
       teams: [

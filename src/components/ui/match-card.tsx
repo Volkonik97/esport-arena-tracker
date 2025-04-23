@@ -28,8 +28,8 @@ export interface MatchProps {
 }
 
 export function MatchCard({ id, teams, competition, date, status, link, spoiler }: MatchProps) {
-  // Log général pour debug : afficher les noms d'équipes reçus par MatchCard
-  console.log('[MatchCard] Equipes reçues :', teams.map(t => t.name));
+  // Log pour debug : afficher les noms d'équipes reçus et la date par MatchCard
+  console.log('[MatchCard] Équipes reçues :', teams.map(t => t.name), 'Date reçue:', date);
 
   // Cas spécial pour Talon
   const team1IsTalon = teams[0].name === 'Talon';
@@ -51,24 +51,36 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
   // Format the date (robust: handle invalid/empty)
   let formattedDate = '';
   let formattedTime = '';
-  if (date) {
-    // Forcément traiter la date comme UTC pour l'afficher à l'heure locale utilisateur
-    const matchDate = new Date(date + (date.match(/T|Z|\+/) ? '' : ' UTC'));
-    if (!isNaN(matchDate.getTime())) {
-      formattedDate = matchDate.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-      });
-      formattedTime = matchDate.toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-    } else {
-      console.warn('[MatchCard] DateTime non valide:', date);
+  
+  if (date && typeof date === 'string' && date !== 'undefined') {
+    try {
+      // Forcément traiter la date comme UTC pour l'afficher à l'heure locale utilisateur
+      const matchDate = new Date(date + (date.match(/T|Z|\+/) ? '' : ' UTC'));
+      
+      if (!isNaN(matchDate.getTime())) {
+        formattedDate = matchDate.toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: 'short',
+        });
+        formattedTime = matchDate.toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      } else {
+        console.warn('[MatchCard] DateTime non valide:', date);
+        formattedDate = '??';
+        formattedTime = '--:--';
+      }
+    } catch (error) {
+      console.error('[MatchCard] Erreur de formatage de date:', error, 'pour la date:', date);
+      formattedDate = '??';
+      formattedTime = '--:--';
     }
   } else {
-    console.warn('[MatchCard] DateTime manquant:', date);
+    console.warn('[MatchCard] DateTime manquant ou invalide:', date);
+    formattedDate = '??';
+    formattedTime = '--:--';
   }
   
   // Determine if score should be shown
@@ -122,7 +134,6 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
                 En direct
               </span>
             )}
-            {/* On n'affiche plus la date ici pour éviter le doublon, car elle est déjà affichée en haut de la carte */}
             {status === 'finished' && (
               <span className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-900/70 text-xs text-green-400 font-semibold border border-green-900 uppercase tracking-wide">

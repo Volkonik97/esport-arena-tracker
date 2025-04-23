@@ -18,11 +18,13 @@ export async function fetchUpcomingMatchesForTournament(overviewPage: string, no
   const data = await response.json();
   if (!data.cargoquery) return [];
   
-  // Add Tournament field to each match for compatibility and map DateTime_UTC to DateTime
+  // Map DateTime_UTC to DateTime for compatibility and ensure both fields exist
   return data.cargoquery.map((item: any) => {
     const match = item.title as UpcomingMatch;
+    if (!match.DateTime && match.DateTime_UTC) {
+      match.DateTime = match.DateTime_UTC;
+    }
     match.Tournament = match.OverviewPage; // Set Tournament to OverviewPage
-    match.DateTime = match.DateTime_UTC; // Set DateTime to DateTime_UTC for compatibility
     return match;
   });
 }
