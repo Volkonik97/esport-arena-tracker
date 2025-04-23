@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Search, Filter, Calendar as CalendarIcon, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useUpcomingMatches, useRecentResults } from "@/hooks/useLeagueMatches";
-import { DateRangePicker } from "@/components/ui/date-picker";
 import { addDays, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import StandingsTable from "@/components/ui/standings-table";
 
 export default function Matches() {
   const [activeTab, setActiveTab] = useState<'live' | 'upcoming' | 'recent'>('live');
@@ -99,12 +99,67 @@ export default function Matches() {
   // --- LOGIQUE SYNCHRONISÉE AVEC Home.tsx ---
   // Même logique pour déterminer les matchs en direct (durée réelle, ex: 2h)
   const MATCH_DURATION_MINUTES = 120; // 2 heures
-  const liveMatches = upcomingMatches.filter(match => {
+  
+  // --- LOGIQUE AVANCÉE POUR LIVE MATCH PAR LIGUE ---
+  // Ligues concernées
+  const AUTO_LIVE_LEAGUES = [
+    'LEC',
+    'LFL',
+    'LTA North',
+    'LPL'
+  ];
+
+  // Fonction utilitaire pour détecter la ligue à partir du nom de tournoi (OverviewPage)
+  const getLeagueFromTournament = (tournament: string) => {
+    if (!tournament) return '';
+    if (tournament.includes('LEC')) return 'LEC';
+    if (tournament.includes('LFL')) return 'LFL';
+    if (tournament.includes('LTA North')) return 'LTA North';
+    if (tournament.includes('LPL')) return 'LPL';
+    return '';
+  };
+
+  // Matches live normaux (par date)
+  const liveMatchesBase = upcomingMatches.filter(match => {
     const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
     const now = new Date();
     const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
     return now >= matchDate && now <= matchEnd;
   });
+
+  // Ajout : live automatique pour les ligues sélectionnées
+  const extraLiveMatches: any[] = [];
+  AUTO_LIVE_LEAGUES.forEach(league => {
+    // 1. Récupérer tous les matchs à venir de cette ligue
+    const upcoming = upcomingMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
+    if (!upcoming.length) return;
+    // 2. Récupérer tous les matchs terminés de cette ligue
+    const finished = recentMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase() && m.Winner);
+    if (!finished.length) return;
+    // 3. Trier les deux listes par date croissante
+    const sortByDate = (a: any, b: any) => new Date(a.DateTime) - new Date(b.DateTime);
+    upcoming.sort(sortByDate);
+    finished.sort(sortByDate);
+    // 4. Prendre le dernier match terminé
+    const lastFinished = finished[finished.length - 1];
+    // 5. Prendre le prochain match à venir
+    const nextUpcoming = upcoming[0];
+    // 6. Si le dernier match terminé est bien avant le prochain match à venir (et pas déjà live)
+    const dateNext = new Date(nextUpcoming.DateTime);
+    const dateLastFinished = new Date(lastFinished.DateTime);
+    const sameDay = dateNext.getFullYear() === dateLastFinished.getFullYear() && dateNext.getMonth() === dateLastFinished.getMonth() && dateNext.getDate() === dateLastFinished.getDate();
+    if (lastFinished && nextUpcoming && dateLastFinished < dateNext && sameDay) {
+      // Si aucun match de cette ligue n'est déjà live
+      const alreadyLive = liveMatchesBase.some(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
+      if (!alreadyLive) {
+        // On force le prochain match à passer live
+        extraLiveMatches.push(nextUpcoming);
+      }
+    }
+  });
+
+  // Fusionner les deux listes (en évitant les doublons)
+  const liveMatches = [...liveMatchesBase, ...extraLiveMatches.filter(m => !liveMatchesBase.includes(m))];
 
   // Générer un ID unique pour chaque match (identique à Home)
   const generateMatchId = (match: any, index: number): string => {
@@ -199,6 +254,9 @@ export default function Matches() {
       team2Score = 0;
     }
 
+    // DEBUG: log les noms d'équipe utilisés pour le logo
+    console.log('[DEBUG LOGO TEAM NAME]', match.Team1, match.Team2);
+
     return {
       id: generateMatchId(match, index),
       teams: [
@@ -224,71 +282,32 @@ export default function Matches() {
     };
   };
   
-  // Filtrer les matchs selon l'onglet actif et les critères de recherche
+  // --- Filtrage des matchs à venir pour exclure ceux qui sont "live" ---
+  const liveMatchIds = new Set(liveMatches.map(m => generateMatchId(m, 0)));
+  const upcomingMatchesFiltered = upcomingMatches.filter((m, i) => !liveMatchIds.has(generateMatchId(m, i)));
+  
+  // Filtrage dynamique : afficher uniquement les matchs à venir dans les 24h
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const upcomingMatches24h = upcomingMatchesFiltered.filter(match => {
+    const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
+    return matchDate > now && matchDate <= in24h;
+  });
+  
+  // TEMP : désactive le filtre de date pour diagnostic
   const getFilteredMatches = () => {
     let matches: any[] = [];
-    
     switch (activeTab) {
       case 'live':
         matches = liveMatches;
         break;
       case 'upcoming':
-        matches = upcomingMatches
-          // On ne garde que les matchs dont la date de début est strictement dans le futur (comme Home.tsx)
-          .filter(match => {
-            const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
-            const now = new Date();
-            return matchDate > now;
-          })
-          // On exclut les matchs déjà considérés comme "live"
-          .filter(match => !liveMatches.some(liveMatch =>
-            liveMatch.Team1 === match.Team1 &&
-            liveMatch.Team2 === match.Team2 &&
-            liveMatch.DateTime === match.DateTime
-          ));
+        matches = upcomingMatches24h; // Utiliser upcomingMatches24h
         break;
       case 'recent':
-        // Pour les résultats récents, éliminer les doublons potentiels
-        const uniqueMatches: any[] = [];
-        const matchKeys = new Set();
-        
-        recentMatches.forEach(match => {
-          // Créer une clé unique pour chaque paire d'équipes
-          const teams = [match.Team1, match.Team2].sort().join('_');
-          const tournamentKey = match.Tournament || 'unknown';
-          const dateKey = new Date(match.DateTime).toDateString();
-          const matchKey = `${teams}_${tournamentKey}_${dateKey}`;
-          
-          // Si nous n'avons pas encore vu cette paire d'équipes pour ce tournoi et cette date
-          if (!matchKeys.has(matchKey)) {
-            matchKeys.add(matchKey);
-            uniqueMatches.push(match);
-          } else {
-            // Si nous avons déjà vu ce match, vérifier si celui-ci a un gagnant
-            // et remplacer l'ancien match par celui-ci si c'est le cas
-            const existingMatchIndex = uniqueMatches.findIndex(m => {
-              const mTeams = [m.Team1, m.Team2].sort().join('_');
-              const mTournament = m.Tournament || 'unknown';
-              const mDate = new Date(m.DateTime).toDateString();
-              const mKey = `${mTeams}_${mTournament}_${mDate}`;
-              return mKey === matchKey;
-            });
-            
-            if (existingMatchIndex !== -1) {
-              const existingMatch = uniqueMatches[existingMatchIndex];
-              // Si le match actuel a un gagnant et l'existant n'en a pas, ou si le match actuel est plus récent
-              if ((match.Winner && !existingMatch.Winner) || 
-                  (new Date(match.DateTime) > new Date(existingMatch.DateTime))) {
-                uniqueMatches[existingMatchIndex] = match;
-              }
-            }
-          }
-        });
-        
-        matches = uniqueMatches;
+        matches = recentMatches;
         break;
     }
-    
     // Appliquer les filtres de recherche par nom d'équipe et par compétition
     return matches.filter(match => {
       if (!searchTerm) return true;
@@ -306,12 +325,29 @@ export default function Matches() {
   // Obtenir toutes les compétitions uniques de tous les matchs
   const allMatches = [...upcomingMatches, ...recentMatches];
   const competitions = ["Tous", ...new Set(allMatches.map(m => m.Tournament).filter(Boolean))];
-  
+
+  // Fonction pour rendre un nom de compétition lisible
+  const formatCompetitionName = (overviewPage: string) =>
+    overviewPage.replace(/_/g, ' ').replace(/\//g, ' ');
+
   const filteredMatches = getFilteredMatches();
+
+  console.log('[DEBUG upcomingMatches]', upcomingMatches);
+  console.log('[DEBUG appliedFilters]', appliedFilters);
+  console.log('[DEBUG selectedCompetition]', selectedCompetition);
+  console.log('[DEBUG allMatches]', allMatches);
+  console.log('[DEBUG competitions]', competitions);
+  console.log('[DEBUG filteredMatches]', filteredMatches);
 
   // Ajout : Spoiler toggle (même logique que Home.tsx)
   const [spoiler, setSpoiler] = useState(true);
   const toggleSpoiler = () => setSpoiler(v => !v);
+
+  // Pour standings, récupère l'OverviewPage du premier match à venir AFFICHÉ dans l'onglet "À venir"
+  const overviewPageFromUpcoming = upcomingMatches && upcomingMatches.length > 0 ? upcomingMatches[0].Tournament : undefined;
+
+  console.log('[DEBUG UPCOMING TOURNAMENTS]', upcomingMatches.map(m => m.Tournament));
+  console.log('[DEBUG overviewPageFromUpcoming]', overviewPageFromUpcoming);
 
   return (
     <Layout>
@@ -372,24 +408,15 @@ export default function Matches() {
                 <label className="block text-sm font-medium mb-2">Compétition</label>
                 <div className="flex flex-wrap gap-2">
                   {competitions.map(competition => (
-                    <Button
+                    <button
                       key={competition}
-                      variant={selectedCompetition === competition ? "default" : "outline"}
-                      size="sm"
+                      className={`px-3 py-1 rounded ${selectedCompetition === competition ? 'bg-esport-500 text-white' : 'bg-dark-700 text-gray-300'}`}
                       onClick={() => setSelectedCompetition(competition)}
                     >
-                      {competition}
-                    </Button>
+                      {competition === "Tous" ? "Tous" : formatCompetitionName(competition)}
+                    </button>
                   ))}
                 </div>
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium mb-2">Dates</label>
-                <DateRangePicker
-                  dateRange={dateRange}
-                  setDateRange={setDateRange}
-                  placeholder="Filtrer par période"
-                />
               </div>
               <div className="mt-4 flex justify-end">
                 <Button 
@@ -414,32 +441,35 @@ export default function Matches() {
             <div className="text-center py-8">
               <p>Chargement des matchs...</p>
             </div>
-          ) : filteredMatches.length > 0 ? (
-            filteredMatches.map((match, index) => (
-              <MatchCard
-                key={`${activeTab}-${index}-${match.Team1}-${match.Team2}`}
-                {...convertMatchToProps(match, index)}
-                spoiler={spoiler}
-              />
-            ))
           ) : (
-            <div className="text-center py-8 text-gray-400">
-              <p>
-                Aucun match trouvé 
-                {activeTab === 'live' && upcomingFallback && " (Mode de secours activé)"}
-                {activeTab === 'upcoming' && upcomingFallback && " (Mode de secours activé)"}
-                {activeTab === 'recent' && recentFallback && " (Mode de secours activé)"}
-              </p>
-              <Button 
-                variant="link" 
-                className="mt-2"
-                onClick={resetFilters}
-              >
-                Réinitialiser les filtres
-              </Button>
-            </div>
+            filteredMatches.length > 0 ? (
+              filteredMatches.map((match, index) => (
+                <MatchCard
+                  key={`${activeTab}-${index}-${match.Team1}-${match.Team2}`}
+                  {...convertMatchToProps(match, index)}
+                  spoiler={spoiler}
+                />
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <p>
+                  Aucun match trouvé 
+                  {activeTab === 'live' && upcomingFallback && " (Mode de secours activé)"}
+                  {activeTab === 'upcoming' && upcomingFallback && " (Mode de secours activé)"}
+                  {activeTab === 'recent' && recentFallback && " (Mode de secours activé)"}
+                </p>
+                <Button 
+                  variant="link" 
+                  className="mt-2"
+                  onClick={resetFilters}
+                >
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            )
           )}
         </div>
+        <StandingsTable tournamentName={appliedFilters.competition} overviewPageFromUpcoming={overviewPageFromUpcoming} />
       </div>
     </Layout>
   );

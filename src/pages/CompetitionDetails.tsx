@@ -5,79 +5,84 @@ import { Button } from "@/components/ui/button";
 import { CalendarClock, ChevronLeft, Trophy } from "lucide-react";
 import { MatchCard, MatchTeam } from "@/components/ui/match-card";
 import { Link } from "react-router-dom";
-import { useUpcomingMatches, useRecentResults, LeagueMatch } from "@/hooks/useLeagueMatches";
+import { useRecentResults, LeagueMatch } from "@/hooks/useLeagueMatches";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLogo } from "@/hooks/useLogo";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useUpcomingMatchesForTournament } from "@/services/upcoming-matches-service";
+import { useActiveTournaments } from "@/services/active-tournaments-service";
+import StandingsTable from "@/components/ui/standings-table"; // Import the StandingsTable component
 
 export default function CompetitionDetails() {
   const { id } = useParams();
   const { toast } = useToast();
 
+  // DEBUG : Vérifie la valeur de l'id utilisé pour le logo
+  console.log('[DEBUG useLogo id]', id);
   // Récupérer le logo de la compétition AVANT les useEffect !
-  const { data: competitionLogo, isLoading: isLogoLoading } = useLogo('tournament', id);
+  const { data: competitionLogo, isLoading: isLogoLoading } = useLogo('tournament', id ?? '');
 
-  // Directement passer l'ID du tournoi aux hooks pour filtrer à la source des données
-  const { data: upcomingMatches = [], isLoading: upcomingLoading, error: upcomingError } = useUpcomingMatches(1000, { tournamentFilter: id });
-  const { data: recentMatches = [], isLoading: recentLoading, error: recentError } = useRecentResults(1000, { tournamentFilter: id });
+  // Récupère la liste des tournois actifs pour l'année courante
+  const { data: tournaments = [], isLoading: tournamentsLoading } = useActiveTournaments("2025");
+
+  // Correction : aplatit la structure si besoin (API peut retourner {title: {...}})
+  const flatTournaments = tournaments.map((t: any) => t.title ?? t);
+  console.log('[DEBUG tournaments]', flatTournaments);
+
+  // Fonction de normalisation robuste pour matcher les noms humains et OverviewPage
+  function normalize(str: string) {
+    return str
+      .toLowerCase()
+      .replace(/season|split|playoffs|group stage|regular|bracket|finals|stage/gi, "")
+      .replace(/[^a-z0-9]/g, "");
+  }
+  function findClosestOverviewPage(humanName: string, tournaments: {Name: string, OverviewPage: string}[]) {
+    const target = normalize(humanName);
+    // 1. Match exact sur Name ou OverviewPage (normalisé)
+    let found = tournaments.find(t => normalize(t.Name) === target || normalize(t.OverviewPage) === target);
+    if (found) return found.OverviewPage;
+    // 2. Match partiel sur Name ou OverviewPage (normalisé)
+    found = tournaments.find(t => normalize(t.Name).includes(target) || normalize(t.OverviewPage).includes(target));
+    if (found) return found.OverviewPage;
+    // 3. Match partiel inversé (target inclus dans Name/OverviewPage)
+    found = tournaments.find(t => target.includes(normalize(t.Name)) || target.includes(normalize(t.OverviewPage)));
+    if (found) return found.OverviewPage;
+    return undefined;
+  }
+  const overviewPage = findClosestOverviewPage(id, flatTournaments);
+  console.log('[DEBUG OVERVIEWPAGE UTILISÉ]', overviewPage);
+
+  // Utilise ce OverviewPage pour requêter les matchs à venir
+  const {
+    data: upcomingMatches = [],
+    isLoading: upcomingLoading
+  } = useUpcomingMatchesForTournament(overviewPage || "", new Date().toISOString().slice(0, 19).replace('T', ' '));
+  const { data: recentMatches, isLoading: recentLoading } = useRecentResults(500, { tournamentFilter: id });
+
+  // Normalisation des matchs à venir pour compatibilité UI (DateTime)
+  const normalizedUpcoming = upcomingMatches.map(m => ({
+    ...m,
+    DateTime: m.DateTime_UTC || m.DateTime,
+    Team1Score: Number(m.Team1Score),
+    Team2Score: Number(m.Team2Score)
+  }));
 
   // Pour le calendrier complet, on fusionne ces deux listes et on trie par date
-  const fullSchedule = [...upcomingMatches, ...recentMatches].sort((a, b) => new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime());
+  const fullSchedule = [...normalizedUpcoming, ...recentMatches].sort((a, b) => new Date(a.DateTime).getTime() - new Date(b.DateTime).getTime());
 
   // DEBUG : Afficher toutes les dates présentes dans fullSchedule
   console.log('DATES FULL SCHEDULE', fullSchedule.map(m => m.DateTime));
 
-  // Afficher un message d'erreur si les deux requêtes ont échoué
-  useEffect(() => {
-    if (upcomingError && recentError) {
-      toast({
-        title: "Erreur de connexion",
-        description: "Impossible de charger les données des matchs.",
-        variant: "destructive",
-      });
-    }
-    // DEBUG: Affiche le nom du tournoi utilisé pour le logo
-    console.log('[LOGO DEBUG][CompetitionDetails] tournament id:', id);
-    // DEBUG: Affiche l'URL du logo utilisée par useLogo
-    console.log('[LOGO DEBUG][CompetitionDetails] logo from useLogo:', competitionLogo);
-    // DEBUG: Affiche l'URL du logo utilisée dans la balise <img>
-    const logoImg = document.querySelector('img[alt="Logo ' + id + '"]');
-    if (logoImg) {
-      console.log('[LOGO DEBUG][CompetitionDetails] logo src:', logoImg.getAttribute('src'));
-    } else {
-      console.log('[LOGO DEBUG][CompetitionDetails] logo img not found in DOM');
-    }
-  }, [upcomingError, recentError, id, toast, competitionLogo]);
-
-  // Convertir les données de match au format MatchCard props
-  const convertMatchToProps = (match: LeagueMatch) => ({
-    id: `${match.Team1}-${match.Team2}-${match.DateTime}`,
-    teams: [
-      { 
-        id: match.Team1,
-        name: match.Team1,
-        logo: `/placeholder.svg`,
-        score: match.Team1Score
-      },
-      {
-        id: match.Team2,
-        name: match.Team2,
-        logo: `/placeholder.svg`,
-        score: match.Team2Score
-      }
-    ] as [MatchTeam, MatchTeam],
-    competition: {
-      id: match.Tournament,
-      name: match.Tournament,
-    },
-    date: match.DateTime,
-    status: match.Winner ? "finished" as const : 
-           new Date(match.DateTime) <= new Date() ? "live" as const : 
-           "upcoming" as const
-  });
+  // DEBUG : log tous les tournois présents dans les matchs pour analyse
+  console.log('DEBUG COMPETITION ID:', id);
+  console.log('DEBUG TOURNAMENTS UPCOMING:', normalizedUpcoming.map(m => m.Tournament));
+  console.log('DEBUG TOURNAMENT FIELD UPCOMING:', normalizedUpcoming.map(m => m.Tournament));
+  console.log('DEBUG TOURNAMENTS RECENT:', recentMatches.map(m => m.Tournament));
+  console.log('DEBUG TOURNAMENT FIELD RECENT:', recentMatches.map(m => m.Tournament));
 
   // Fonction utilitaire : normalise et trie les mots d'une chaîne
   function normalizeAndSortWords(str?: string) {
@@ -90,12 +95,30 @@ export default function CompetitionDetails() {
       .join(" ");
   }
 
-  // DEBUG : log tous les tournois présents dans les matchs pour analyse
-  console.log('DEBUG COMPETITION ID:', id);
-  console.log('DEBUG TOURNAMENTS UPCOMING:', upcomingMatches.map(m => m.Tournament));
-  console.log('DEBUG TOURNAMENTS RECENT:', recentMatches.map(m => m.Tournament));
-
+  // DEBUG LOGS pour diagnostic
+  console.log('[DEBUG COMPETITION ID]', id);
+  console.log('[DEBUG UPCOMING MATCHES]', normalizedUpcoming);
+  console.log('[DEBUG RECENT MATCHES]', recentMatches);
+  if (normalizedUpcoming.length > 0) {
+    console.log('[DEBUG TOURNAMENT FIELD UPCOMING]', normalizedUpcoming.map(m => m.Tournament));
+  }
+  if (recentMatches.length > 0) {
+    console.log('[DEBUG TOURNAMENT FIELD RECENT]', recentMatches.map(m => m.Tournament));
+  }
   const normalizedId = normalizeAndSortWords(id);
+  console.log('[DEBUG NORMALIZED ID]', normalizedId);
+
+  // DEBUG: Affiche l'OverviewPage utilisé pour standings
+  console.log('[DEBUG OVERVIEWPAGE UTILISÉ]', overviewPage);
+
+  // DEBUG: Affiche le nom normalisé transmis au standings
+  console.log('[DEBUG STANDINGS PROP tournamentName]', normalizedId);
+
+  // DEBUG: Affiche tous les OverviewPages présents dans les matchs à venir
+  console.log('[DEBUG TOURNAMENT FIELD UPCOMING]', normalizedUpcoming.map(m => m.Tournament));
+
+  // DEBUG: Affiche tous les OverviewPages présents dans les résultats récents
+  console.log('[DEBUG TOURNAMENT FIELD RECENT]', recentMatches.map(m => m.Tournament));
 
   // Pour les résultats récents, on ne garde qu'un seul résultat final par rencontre (même équipes, même date)
   function deduplicateMatches(matches: LeagueMatch[]): LeagueMatch[] {
@@ -118,14 +141,19 @@ export default function CompetitionDetails() {
   );
   filteredRecent = deduplicateMatches(filteredRecent);
 
-  // Correction : un match est "à venir" ou "en direct" UNIQUEMENT s'il n'a pas Winner ET scores non complets
-  const filteredUpcoming = upcomingMatches.filter(
-    m => normalizeAndSortWords(m.Tournament) === normalizedId && (!m.Winner && (m.Team1Score === undefined || m.Team2Score === undefined || m.Team1Score === 0 && m.Team2Score === 0))
-  );
+  // Pour UpcomingMatch, il n'y a pas de Winner, donc on garde tout
+  const filteredUpcoming = normalizedUpcoming;
 
   console.log("Competition ID:", id);
-  console.log("Upcoming matches:", upcomingMatches);
+  console.log("Upcoming matches:", normalizedUpcoming);
   console.log("Recent matches:", recentMatches);
+
+  // DEBUG : Affiche l'URL pour lister tous les OverviewPage ayant des matchs à venir
+  if (normalizedUpcoming.length === 0) {
+    const nowIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const overviewUrl = `https://lol.fandom.com/api.php?action=cargoquery&tables=MatchSchedule&fields=MatchSchedule.OverviewPage&where=${encodeURIComponent(`MatchSchedule.DateTime_UTC >= '${nowIso}'`)}&limit=500&format=json&origin=*`;
+    console.log('[DEBUG ALL OverviewPage URL]', overviewUrl);
+  }
 
   // Trouver dynamiquement la date du premier match réel dans le calendrier
   // Si la date de début officielle existe et il y a des matchs ce jour-là, on l'utilise en priorité
@@ -164,6 +192,55 @@ export default function CompetitionDetails() {
     effectiveFirstMatchDate = fullSchedule.length > 0 ? fullSchedule.map(m => m.DateTime && m.DateTime.slice(0, 10)).filter(Boolean).sort()[0] : null;
     matchesOnFirstDay = effectiveFirstMatchDate ? fullSchedule.filter(m => m.DateTime && m.DateTime.slice(0, 10) === effectiveFirstMatchDate) : [];
   }
+
+  // Convertir les données de match au format MatchCard props
+  const convertMatchToProps = (match: LeagueMatch) => {
+    console.log('[CompetitionDetails] convertMatchToProps input:', match);
+    // Correction : supporte DateTime UTC si DateTime absent
+    const date = match.DateTime || match['DateTime UTC'] || match.DateTime_UTC || undefined;
+    // On ne veut plus de TBD du tout à l'affichage : si une équipe est absente, on met une chaîne vide
+    const team1 = match.Team1 || '';
+    const team2 = match.Team2 || '';
+    return {
+      id: `${team1 || 'empty'}-${team2 || 'empty'}-${date || Math.random().toString(36).slice(2)}`,
+      teams: [
+        { 
+          id: team1,
+          name: team1,
+          logo: `/placeholder.svg`,
+          score: match.Team1Score
+        },
+        {
+          id: team2,
+          name: team2,
+          logo: `/placeholder.svg`,
+          score: match.Team2Score
+        }
+      ] as [MatchTeam, MatchTeam],
+      competition: {
+        id: match.Tournament || '',
+        name: match.Tournament || '',
+      },
+      date,
+      status: match.Winner ? "finished" as const : 
+             (date && new Date(date) <= new Date() ? "live" as const : "upcoming" as const)
+    };
+  };
+
+  useEffect(() => {
+    // Suppression de la gestion d'erreur basée sur upcomingError/recentError qui ne sont plus définies
+    // DEBUG: Affiche le nom du tournoi utilisé pour le logo
+    console.log('[LOGO DEBUG][CompetitionDetails] tournament id:', id);
+    // DEBUG: Affiche l'URL du logo utilisée par useLogo
+    console.log('[LOGO DEBUG][CompetitionDetails] logo from useLogo:', competitionLogo);
+    // DEBUG: Affiche l'URL du logo utilisée dans la balise <img>
+    const logoImg = document.querySelector('img[alt="Logo ' + id + '"]');
+    if (logoImg) {
+      console.log('[LOGO DEBUG][CompetitionDetails] logo src:', logoImg.getAttribute('src'));
+    } else {
+      console.log('[LOGO DEBUG][CompetitionDetails] logo img not found in DOM');
+    }
+  }, [id, toast, competitionLogo]);
 
   return (
     <Layout>
@@ -237,59 +314,68 @@ export default function CompetitionDetails() {
         
         {/* Section des matchs */}
         <div className="space-y-6">
-          {/* Matchs en direct et à venir */}
-          <div>
-            <h2 className="text-xl font-bold mb-4">Matchs à venir</h2>
-            <div className="grid gap-3">
-              {upcomingLoading ? (
-                Array(3).fill(0).map((_, i) => (
-                  <Card key={`skeleton-upcoming-${i}`}>
-                    <CardContent className="p-4">
-                      <Skeleton className="h-16 w-full" />
-                    </CardContent>
-                  </Card>
-                ))
-              ) : filteredUpcoming && filteredUpcoming.length > 0 ? (
-                filteredUpcoming.map(match => (
-                  <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
-                ))
-              ) : (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Aucun match à venir trouvé pour cette compétition
-                  </AlertDescription>
-                </Alert>
-              )}
+          <Tabs defaultValue="upcoming" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="upcoming">À venir</TabsTrigger>
+              <TabsTrigger value="recent">Résultats</TabsTrigger>
+              <TabsTrigger value="standings">Classement</TabsTrigger>
+            </TabsList>
+            <div className="mt-2">
+              <TabsContent value="upcoming">
+                <div className="grid gap-3">
+                  {upcomingLoading ? (
+                    Array(3).fill(0).map((_, i) => (
+                      <Card key={`skeleton-upcoming-${i}`}>
+                        <CardContent className="p-4">
+                          <Skeleton className="h-16 w-full" />
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : filteredUpcoming && filteredUpcoming.length > 0 ? (
+                    filteredUpcoming.map(match => (
+                      <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
+                    ))
+                  ) : (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Aucun match à venir trouvé pour cette compétition
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="recent">
+                <div className="grid gap-3">
+                  {recentLoading ? (
+                    Array(3).fill(0).map((_, i) => (
+                      <Card key={`skeleton-recent-${i}`}>
+                        <CardContent className="p-4">
+                          <Skeleton className="h-16 w-full" />
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : filteredRecent && filteredRecent.length > 0 ? (
+                    filteredRecent.map(match => (
+                      <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
+                    ))
+                  ) : (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Aucun résultat récent trouvé pour cette compétition
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="standings">
+                <div id="standings-tab-content" className="py-4">
+                  <StandingsTable tournamentName={normalizedId} overviewPageFromUpcoming={overviewPage} />
+                </div>
+              </TabsContent>
             </div>
-          </div>
-          
-          {/* Résultats récents */}
-          <div>
-            <h2 className="text-xl font-bold mb-4">Résultats récents</h2>
-            <div className="grid gap-3">
-              {recentLoading ? (
-                Array(3).fill(0).map((_, i) => (
-                  <Card key={`skeleton-recent-${i}`}>
-                    <CardContent className="p-4">
-                      <Skeleton className="h-16 w-full" />
-                    </CardContent>
-                  </Card>
-                ))
-              ) : filteredRecent && filteredRecent.length > 0 ? (
-                filteredRecent.map(match => (
-                  <MatchCard key={`${match.Team1}-${match.Team2}-${match.DateTime}`} {...convertMatchToProps(match)} />
-                ))
-              ) : (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Aucun résultat récent trouvé pour cette compétition
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </div>
+          </Tabs>
         </div>
       </div>
     </Layout>

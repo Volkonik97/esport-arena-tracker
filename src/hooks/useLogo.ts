@@ -26,6 +26,15 @@ export function useLogo(type: 'team' | 'tournament', name: string, defaultLogo?:
         return 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/66/TALON_%28Hong_Kong_Team%29logo_profile.png/revision/latest?cb=20210728214242&format=original';
       }
       
+      // Cas spécial pour Bilibili Gaming (toutes variantes, insensible à la casse)
+      if (
+        type === 'team' &&
+        /bilibili[_ ]?gaming|blg/i.test(name)
+      ) {
+        console.log(`[useLogo] Using hardcoded URL for Bilibili Gaming, name reçu: ${name}`);
+        return 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/fb/Bilibili_Gaminglogo_profile.png';
+      }
+      
       try {
         // Ajout d'un délai aléatoire entre 0 et 200ms pour éviter les requêtes simultanées
         // qui pourraient surcharger l'API Leaguepedia

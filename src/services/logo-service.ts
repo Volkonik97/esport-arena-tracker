@@ -10,11 +10,11 @@ interface LogoResponse {
 // Logos connus en fallback si l'API échoue
 const FALLBACK_LOGOS: Record<string, string> = {
   // Équipes majeures LEC
-  'G2 Esports': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FG2-FullonDark.png',
+  'G2 Esports': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/7/77/G2_Esportslogo_square.png',
   'Fnatic': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819669850_fnatic-2021-worlds.png',
   'MAD Lions': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FMad-Lions-Logo-FullonDark.png',
   'Team BDS': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/06/Team_BDSlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20220111204832',
-  'Excel': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2FXL-FullonDark.png',
+  'Excel': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819733356_excel-2021-worlds.png',
   'SK Gaming': 'https://static.lolesports.com/teams/1643979272144_SK_Monochrome.png',
   'Team Heretics': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/c/c6/Team_Hereticslogo_profile.png/revision/latest?cb=20230116204953',
   'Team Vitality': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/8/86/Team_Vitalitylogo_square.png/revision/latest/scale-to-width-down/220?cb=20230224142251',
@@ -28,17 +28,32 @@ const FALLBACK_LOGOS: Record<string, string> = {
   'T1': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819360134_t1-2021-worlds.png',
   'Gen.G': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819238354_geng-2021-worlds.png',
   'Dplus KIA': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/e/e0/Dplus_KIAlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230512045312',
-  'Dplus KIA Youth': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/e/e0/Dplus_KIAlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230512045312',
+  'Dplus KIA Challengers': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/e/e0/Dplus_KIAlogo_profile.png',
   'KT Rolster': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/5/5c/KT_Rolsterlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210605164657',
+  'KT Rolster Challengers': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/5/5c/KT_Rolsterlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210605164657',
   'DRX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0d/DRXlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20200107182345',
+  'DRX Challengers': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/8/81/DRXlogo_profile.png',
   'DN Freecs': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/5/5a/Dplus_Freecslogo_profile.png/revision/latest/scale-to-width-down/220?cb=20231122071644',
+  'DN Freecs Challengers': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/c/c1/DN_Freecslogo_profile.png',
   'Hanwha Life Esports Challengers': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/f8/Hanwha_Life_Esportslogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210108001027',
+  'BNK FEARX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK FearX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK Fearx': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK_FEARX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK_FearX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK_Fearx': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
   'BNK FEARX Youth': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/f6/BNK_FEARXlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20240108083242',
   'Nongshim Esports Academy': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/b/b8/Nongshim_RedForcelogo_square.png/revision/latest/scale-to-width-down/220?cb=20210325081928',
   
   // Équipes majeures LPL
-  'JD Gaming': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1627457924722_JDG_Logo_200407-05.png',
+  'JD Gaming': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/9/9f/JD_Gaminglogo_profile.png',
+  'JD GAMING': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/9/9f/JD_Gaminglogo_profile.png',
+  'JD_Gaming': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/9/9f/JD_Gaminglogo_profile.png',
+  'JDG': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/9/9f/JD_Gaminglogo_profile.png',
   'Bilibili Gaming': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/fb/Bilibili_Gaminglogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230503003727',
+  'BILIBILI GAMING': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/fb/Bilibili_Gaminglogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230503003727',
+  'Bilibili_Gaming': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/fb/Bilibili_Gaminglogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230503003727',
+  'BLG': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/fb/Bilibili_Gaminglogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230503003727',
   'Weibo Gaming': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/8/87/Weibo_Gaminglogo_profile.png/revision/latest/scale-to-width-down/220?cb=20211227071502',
   'LNG Esports': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/d/d5/LNG_Esportslogo_square.png/revision/latest/scale-to-width-down/220?cb=20230426041003',
   'Top Esports': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/7/75/Top_Esportslogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210728214429',
@@ -50,7 +65,7 @@ const FALLBACK_LOGOS: Record<string, string> = {
   'GaoziGaming': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/f/f3/GaoziGaminglogo_profile.png/revision/latest/scale-to-width-down/220?cb=20240108082354',
   'All I Want': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/a/a9/All_I_Wantlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20240108081417',
   'Happy Game (LGC Team)': 'https://lol-esports-assets.s3.amazonaws.com/production/images/happy-game-logo-light-on-dark.png',
-  'Ninjas in Pyjamas.CN': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/1/12/Ninjas_in_Pyjamas.CNlogo_profile.png/revision/latest/scale-to-width-down/220?cb=20230107093945',
+  'Ninjas in Pyjamas.CN': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/1/12/Ninjas_in_Pyjamas.CNlogo_profile.png/revision/latest?cb=20230107093945',
   
   // Équipes majeures LCS
   'Cloud9': 'https://am-a.akamaihd.net/image?resize=60:60&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1631819887391_cloud9-2021-worlds.png',
@@ -73,9 +88,9 @@ const FALLBACK_LOGOS: Record<string, string> = {
   'DetonatioN FocusMe': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/5/5f/DetonatioN_FocusMelogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210728211916',
   'Chiefs Esports Club': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/8/88/Chiefs_Esports_Clublogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210728211647',
   'Esprit Shonen': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/4/49/Esprit_Sh%C5%8Dnenlogo_square.png/revision/latest/scale-to-width-down/220?cb=20231229210448',
-  'Esprit Shōnen': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/4/49/Esprit_Sh%C5%8Dnenlogo_square.png/revision/latest/scale-to-width-down/220?cb=20231229210448',
   'KIA.eSuba Academy': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/7/7f/KIA.eSuba_Academylogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210614152515',
   'Gen.G Scholars': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/5/5b/Gen.Glogo_profile.png/revision/latest/scale-to-width-down/220?cb=20210325073641',
+  'Gen.G Global Academy': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/5/5b/Gen.Glogo_profile.png',
   'Ici Japon Corp. Esport': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/7/7a/Ici_Japon_Corp._Esportlogo_square.png/revision/latest/scale-to-width-down/220?cb=20241006054235',
   'Barça eSports': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/6/68/Bar%C3%A7a_eSportslogo_square.png/revision/latest/scale-to-width-down/220?cb=20221118223547',
   'Movistar KOI': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/b/bd/Movistar_KOIlogo_square.png',
@@ -94,6 +109,9 @@ const FALLBACK_LOGOS: Record<string, string> = {
   'LTA South 2025 Split 2': 'https://static.lolesports.com/leagues/1731566868757_LTASOUTH-LOGO_Red_RGB2000px.png',
   'Hitpoint Masters': 'https://static.lolesports.com/leagues/1641465237186_HM_white.png',
   'Hitpoint Masters 2025 Spring': 'https://static.lolesports.com/leagues/1641465237186_HM_white.png',
+  'T1 Esports Academy': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/7/78/T1logo_profile.png',
+  'OKSavingsBank BRION Challengers': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/1/14/OKSavingsBank_BRIONlogo_profile.png',
+  'Frank Esports': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/07/Frank_Esportslogo_profile.png',
 };
 
 // Ajout d'un fallback direct pour les ligues majeures et régionales (logo officiel lolesports)
@@ -116,6 +134,9 @@ const HARDCODED_LEAGUE_LOGOS: Record<string, string> = {
   'LTA South': 'https://static.lolesports.com/leagues/1731566868757_LTASOUTH-LOGO_Red_RGB2000px.png',
   'LTA South 2025 Split 2': 'https://static.lolesports.com/leagues/1731566868757_LTASOUTH-LOGO_Red_RGB2000px.png',
   'Arabian League': 'https://static.lolesports.com/leagues/1738573749768_GoldAL.png',
+  'LEC 2025 Spring': 'https://am-a.akamaihd.net/image?resize=120:120&f=http%3A%2F%2Fstatic.lolesports.com%2Fleagues%2F1592516184297_LEC-01-FullonDark.png',
+  'LEC 2025 Spring Playoffs': 'https://am-a.akamaihd.net/image?resize=120:120&f=http%3A%2F%2Fstatic.lolesports.com%2Fleagues%2F1592516184297_LEC-01-FullonDark.png',
+  'LEC/2025 Season/Spring Season': 'https://am-a.akamaihd.net/image?resize=120:120&f=http%3A%2F%2Fstatic.lolesports.com%2Fleagues%2F1592516184297_LEC-01-FullonDark.png',
 };
 
 // Correction LOGO: mapping explicite pour toutes variantes possibles du tournoi
@@ -202,31 +223,21 @@ const HARDCODED_TOURNAMENT_LOGOS: Record<string, string> = {
   '4 Nations 2025 Spring': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/d/d3/UKEL_2023.png',
 };
 
-// Normalise le nom d'une équipe pour la recherche de fallback
+// Fonction utilitaire pour normaliser les noms d'équipe (minuscules, sans espaces, tirets, underscores, etc.)
 function normalizeTeamName(name: string): string {
-  // Supprime les caractères spéciaux et met en minuscules
-  const normalized = name.toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/esports?/g, '')
-    .replace(/gaming/g, '')
-    .trim();
-  
-  // Map des alias connus
-  const aliases: Record<string, string> = {
-    'geng': 'gen.g',
-    'dpk': 'dplus kia',
-    'dk': 'dplus kia',
-    'blg': 'bilibili gaming',
-    'c9': 'cloud9',
-    'tl': 'team liquid',
-    '100t': '100 thieves',
-    'kcorp': 'karmine corp',
-    'karmineorp': 'karmine corp',
-    'bds': 'team bds',
-    'rge': 'rogue',
-  };
-  
-  return aliases[normalized] || normalized;
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+export function getTeamLogo(teamName: string): string | undefined {
+  // Recherche normalisée dans le mapping
+  const norm = normalizeTeamName(teamName);
+  const entry = Object.entries(FALLBACK_LOGOS).find(([key]) => normalizeTeamName(key) === norm);
+  if (entry) return entry[1];
+  // LOG si pas trouvé
+  if (typeof window !== 'undefined') {
+    console.warn('[LOGO] Aucun logo trouvé pour :', teamName, `(clé normalisée: ${norm})`);
+  }
+  return undefined;
 }
 
 // Normalise le nom d'une compétition pour matcher les clés de logos
@@ -311,11 +322,45 @@ function cleanWikiaUrl(url: string): string {
   }
 }
 
+const HARDCODED_TEAM_LOGOS: Record<string, string> = {
+  'BNK FEARX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK FearX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK Fearx': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK_FEARX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK_FearX': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+  'BNK_Fearx': 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/0f/BNK_FEARXlogo_profile.png',
+};
+
 export async function getLogo(
   entityType: 'team' | 'tournament',
   name: string,
   defaultLogo?: string
 ): Promise<string> {
+  // CAS SPÉCIAL : BNK FEARX prioritaire sur tout (avant cache/API)
+  if (entityType === 'team' && name && HARDCODED_TEAM_LOGOS[name]) {
+    console.log('[Logo][DEBUG] Fallback forcé pour BNK FEARX (bypass cache/API):', name);
+    return HARDCODED_TEAM_LOGOS[name];
+  }
+  // CAS SPÉCIAL : Frank Esports prioritaire sur tout (avant cache/API)
+  if (entityType === 'team' && name && /frank\s*esports/i.test(name)) {
+    console.log('[Logo][DEBUG] Fallback forcé pour Frank Esports (bypass cache/API):', name);
+    return 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/0/07/Frank_Esportslogo_profile.png';
+  }
+  // CAS SPÉCIAL : HELL Pigs prioritaire sur tout (avant cache/API)
+  if (entityType === 'team' && (name === 'HELL Pigs' || name === 'Hell Pigs')) {
+    console.log('[Logo][DEBUG] Fallback forcé pour HELL Pigs (bypass cache/API):', name);
+    return 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/c/c9/HELL_PIGSlogo_profile.png';
+  }
+  // CAS SPÉCIAL : G2 Esports prioritaire sur tout (avant cache/API)
+  if (entityType === 'team' && name && /g2\s*esports/i.test(name)) {
+    console.log('[Logo][DEBUG] Fallback forcé pour G2 Esports (bypass cache/API):', name);
+    return 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/7/77/G2_Esportslogo_square.png';
+  }
+  // CAS SPÉCIAL : Karmine Corp prioritaire sur tout (avant cache/API)
+  if (entityType === 'team' && name && /karmine\s*corp/i.test(name)) {
+    console.log('[Logo][DEBUG] Fallback forcé pour Karmine Corp (bypass cache/API):', name);
+    return 'https://static.wikia.nocookie.net/lolesports_gamepedia_en/images/2/2d/Karmine_Corplogo_square.png/revision/latest/scale-to-width-down/220?cb=20240119163338';
+  }
   // LOGO PATCH: check explicit tournament mapping first
   if (entityType === 'tournament' && name && HARDCODED_TOURNAMENT_LOGOS[name]) {
     console.log('[LOGO DEBUG][HARDCODED_TOURNAMENT_LOGOS] match:', name, HARDCODED_TOURNAMENT_LOGOS[name]);
@@ -415,63 +460,6 @@ export async function getLogo(
       return FALLBACK_LOGOS['Nongshim Esports Academy'];
     }
     
-    // Cas spécial pour Talon - vider le cache
-    if (entityType === 'team' && name === 'Talon') {
-      console.log(`[Logo] Clearing cache for Talon`);
-      try {
-        await supabase
-          .from('assets')
-          .delete()
-          .eq('entity_type', 'team')
-          .eq('name', 'Talon');
-      } catch (error) {
-        console.error('[Logo] Error clearing cache for Talon:', error);
-      }
-    }
-    // Cas spécial pour Lyon - vider le cache
-    if (entityType === 'team' && /lyon/i.test(name)) {
-      console.log(`[Logo] Clearing cache for LYON: ${name}`);
-      try {
-        await supabase
-          .from('assets')
-          .delete()
-          .eq('entity_type', 'team')
-          .eq('name', name);
-      } catch (error) {
-        console.error('[Logo] Error clearing cache for Lyon:', error);
-      }
-    }
-    // Cas spécial pour Rogue - vider le cache et loguer le nom reçu
-    if (entityType === 'team' && /rogue/i.test(name)) {
-      console.log(`[Logo][DEBUG] Nom reçu pour Rogue : ${name}`);
-      console.log(`[Logo] Clearing cache for ROGUE: ${name}`);
-      try {
-        await supabase
-          .from('assets')
-          .delete()
-          .eq('entity_type', 'team')
-          .eq('name', name);
-      } catch (error) {
-        console.error('[Logo] Error clearing cache for Rogue:', error);
-      }
-    }
-    // Log pour debug 100 Thieves
-    if (entityType === 'team' && (/100/i.test(name) || /thieves/i.test(name))) {
-      console.log(`[Logo][DEBUG] Nom reçu pour 100 Thieves : ${name}`);
-    }
-    // Debug : log le nom reçu pour Karmine Corp
-    if (entityType === 'team' && /karmine/i.test(name)) {
-      console.log(`[Logo][DEBUG] Nom reçu pour Karmine : ${name}`);
-    }
-    // Debug : log le nom reçu pour Esprit Shõnen
-    if (entityType === 'team' && (/esprit/i.test(name) || /shonen/i.test(name) || /shõnen/i.test(name))) {
-      console.log(`[Logo][DEBUG] Nom reçu pour Esprit Shõnen : ${name}`);
-    }
-    // Debug : log le nom reçu pour KIA.eSuba Academy et Gen.G Scholars
-    if (entityType === 'team' && (/kia/i.test(name) || /suba/i.test(name) || /gen/i.test(name) || /schol/i.test(name))) {
-      console.log(`[Logo][DEBUG] Nom reçu pour équipe spéciale : ${name}`);
-    }
-    
     // Cas spécial : forcer le fallback pour Ninjas in Pyjamas.CN (avant cache/API)
     if (entityType === 'team' && name === 'Ninjas in Pyjamas.CN') {
       console.warn(`[Logo][DEBUG] Fallback forcé pour Ninjas in Pyjamas.CN (bypass cache/API)`);
@@ -490,6 +478,42 @@ export async function getLogo(
       return FALLBACK_LOGOS['Team Vitality'];
     }
     
+    // Cas spécial : forcer le fallback pour DRX Challengers et KT Rolster Challengers (avant cache/API)
+    if (entityType === 'team' && (name === 'DRX Challengers' || name === 'KT Rolster Challengers')) {
+      console.warn(`[Logo][DEBUG] Fallback forcé pour équipe Challengers (bypass cache/API): ${name}`);
+      return FALLBACK_LOGOS[name];
+    }
+    
+    // Cas spécial : forcer le fallback pour DN Freecs Challengers (avant cache/API)
+    if (entityType === 'team' && name === 'DN Freecs Challengers') {
+      console.warn(`[Logo][DEBUG] Fallback forcé pour DN Freecs Challengers (bypass cache/API): ${name}`);
+      return FALLBACK_LOGOS['DN Freecs Challengers'];
+    }
+    
+    // Cas spécial : forcer le fallback pour Dplus KIA Challengers (avant cache/API)
+    if (entityType === 'team' && name === 'Dplus KIA Challengers') {
+      console.warn(`[Logo][DEBUG] Fallback forcé pour Dplus KIA Challengers (bypass cache/API): ${name}`);
+      return FALLBACK_LOGOS['Dplus KIA Challengers'];
+    }
+    
+    // Cas spécial : forcer le fallback pour T1 Esports Academy (avant cache/API)
+    if (entityType === 'team' && name === 'T1 Esports Academy') {
+      console.warn(`[Logo][DEBUG] Fallback forcé pour T1 Esports Academy (bypass cache/API): ${name}`);
+      return FALLBACK_LOGOS['T1 Esports Academy'];
+    }
+    
+    // Cas spécial : forcer le fallback pour OKSavingsBank BRION Challengers (avant cache/API)
+    if (entityType === 'team' && name === 'OKSavingsBank BRION Challengers') {
+      console.warn(`[Logo][DEBUG] Fallback forcé pour OKSavingsBank BRION Challengers (bypass cache/API): ${name}`);
+      return FALLBACK_LOGOS['OKSavingsBank BRION Challengers'];
+    }
+    
+    // Cas spécial : forcer le fallback pour Gen.G Global Academy (avant cache/API)
+    if (entityType === 'team' && name === 'Gen.G Global Academy') {
+      console.warn(`[Logo][DEBUG] Fallback forcé pour Gen.G Global Academy (bypass cache/API): ${name}`);
+      return FALLBACK_LOGOS['Gen.G Global Academy'];
+    }
+
     // 1. Si c'est une compétition, vérifier si on peut générer son logo
     if (entityType === 'tournament' && isKnownLeague(name)) {
       const logoUrl = getLeagueLogo(name);
@@ -516,22 +540,8 @@ export async function getLogo(
 
     // 3. Vérifier les logos connus en fallback
     if (entityType === 'team') {
-      // Vérifier le nom exact
-      if (FALLBACK_LOGOS[name]) {
-        console.log(`[Logo] Using known fallback for ${name}`);
-        return FALLBACK_LOGOS[name];
-      }
-      
-      // Vérifier avec le nom normalisé
-      const normalizedName = normalizeTeamName(name);
-      const fallbackKey = Object.keys(FALLBACK_LOGOS).find(key => 
-        normalizeTeamName(key) === normalizedName
-      );
-      
-      if (fallbackKey) {
-        console.log(`[Logo] Using fallback logo for ${name} (matched ${fallbackKey})`);
-        return FALLBACK_LOGOS[fallbackKey];
-      }
+      const logo = getTeamLogo(name);
+      if (logo) return logo;
     }
 
     // Correction : Normalisation du nom pour les tournois

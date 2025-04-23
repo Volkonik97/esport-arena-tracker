@@ -87,24 +87,73 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState<'live' | 'upcoming' | 'recent'>('live');
   const [spoiler, toggleSpoiler] = useSpoiler(true); // Par défaut activé
-  const { data: upcomingMatches = [], isLoading: upcomingLoading } = useUpcomingMatches(5);
-  const { data: recentMatches = [], isLoading: recentLoading } = useRecentResults(15);
+  // Harmonise le nombre de matchs pour avoir le même contexte que la page Matchs
+  const { data: upcomingMatches = [], isLoading: upcomingLoading } = useUpcomingMatches(50);
+  const { data: recentMatches = [], isLoading: recentLoading } = useRecentResults(50);
   
   // Ajout debug pour voir ce que renvoie recentMatches brut
   console.log('DEBUG RECENT MATCHES RAW:', recentMatches);
   
-  // Même logique que Matches.tsx pour déterminer les matchs en direct (durée réelle, ex: 2h)
+  const generateMatchId = (match: any, index: number): string => {
+    return `${match.Team1}-${match.Team2}-${match.DateTime?.substring(0, 10) || ''}-${index}`;
+  };
+
+  // --- LOGIQUE AVANCÉE POUR LIVE MATCH PAR LIGUE ---
+  const AUTO_LIVE_LEAGUES = [
+    'LEC',
+    'LFL',
+    'LTA North',
+    'LPL'
+  ];
+  const getLeagueFromTournament = (tournament: string) => {
+    if (!tournament) return '';
+    if (tournament.includes('LEC')) return 'LEC';
+    if (tournament.includes('LFL')) return 'LFL';
+    if (tournament.includes('LTA North')) return 'LTA North';
+    if (tournament.includes('LPL')) return 'LPL';
+    return '';
+  };
   const MATCH_DURATION_MINUTES = 120; // 2 heures
-  const liveMatches = upcomingMatches.filter(match => {
+  const liveMatchesBase = upcomingMatches.filter(match => {
     const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
     const now = new Date();
     const matchEnd = new Date(matchDate.getTime() + MATCH_DURATION_MINUTES * 60 * 1000);
     return now >= matchDate && now <= matchEnd;
   });
-
-  const generateMatchId = (match: any, index: number): string => {
-    return `${match.Team1}-${match.Team2}-${match.DateTime?.substring(0, 10) || ''}-${index}`;
-  };
+  const extraLiveMatches: any[] = [];
+  AUTO_LIVE_LEAGUES.forEach(league => {
+    const upcoming = upcomingMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
+    if (!upcoming.length) return;
+    const finished = recentMatches.filter(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase() && m.Winner);
+    if (!finished.length) return;
+    const sortByDate = (a: any, b: any) => new Date(a.DateTime) - new Date(b.DateTime);
+    upcoming.sort(sortByDate);
+    finished.sort(sortByDate);
+    const lastFinished = finished[finished.length - 1];
+    const nextUpcoming = upcoming[0];
+    // Correction : n'activer "auto-live" QUE si le match terminé est le même jour ET avant le prochain match
+    const dateNext = new Date(nextUpcoming.DateTime);
+    const dateLastFinished = new Date(lastFinished.DateTime);
+    const sameDay = dateNext.getFullYear() === dateLastFinished.getFullYear() && dateNext.getMonth() === dateLastFinished.getMonth() && dateNext.getDate() === dateLastFinished.getDate();
+    if (lastFinished && nextUpcoming && dateLastFinished < dateNext && sameDay) {
+      const alreadyLive = liveMatchesBase.some(m => getLeagueFromTournament(m.Tournament).toLowerCase() === league.toLowerCase());
+      if (!alreadyLive) {
+        extraLiveMatches.push(nextUpcoming);
+      }
+    }
+  });
+  const liveMatches = [...liveMatchesBase, ...extraLiveMatches.filter(m => !liveMatchesBase.includes(m))];
+  // --- Filtrage des matchs à venir pour exclure ceux qui sont "live" ---
+  const liveMatchIds = new Set(liveMatches.map(m => generateMatchId(m, 0)));
+  const upcomingMatchesFiltered = upcomingMatches.filter((m, i) => !liveMatchIds.has(generateMatchId(m, i)));
+  
+  // Afficher uniquement les matchs à venir dans les 24h
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const upcomingMatches24h = upcomingMatchesFiltered.filter(match => {
+    const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
+    return matchDate > now && matchDate <= in24h;
+  });
 
   const convertMatchToProps = (match: any, index: number) => {
     let matchStatus: "upcoming" | "live" | "finished";
@@ -236,6 +285,10 @@ export default function Home() {
     live: liveMatches
   });
   
+  // Pagination locale : limite à 5 matchs à venir par défaut, bouton "Afficher plus"
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const displayedUpcomingMatches = showAllUpcoming ? upcomingMatches24h : upcomingMatches24h.slice(0, 5);
+
   return (
     <Layout>
       <div className="container mx-auto px-4 lg:px-8 py-6">
@@ -300,26 +353,43 @@ export default function Home() {
               />
             ))}
             
-            {activeTab === 'upcoming' && !upcomingLoading && upcomingMatches
-              // On ne garde que les matchs dont la date de début est strictement dans le futur
-              .filter(match => {
-                const matchDate = new Date(match.DateTime + (match.DateTime.match(/T|Z|\+/) ? '' : ' UTC'));
-                const now = new Date(); // Heure dynamique à chaque rendu
-                return matchDate > now;
-              })
-              .filter(match => !liveMatches.some(liveMatch => 
-                liveMatch.Team1 === match.Team1 && 
-                liveMatch.Team2 === match.Team2 && 
-                liveMatch.DateTime === match.DateTime
-              ))
+            {activeTab === 'upcoming' && !upcomingLoading && displayedUpcomingMatches
               .map((match, index) => (
                 <MatchCard
                   key={`upcoming-${generateMatchId(match, index)}`}
                   {...convertMatchToProps(match, index)}
                   spoiler={spoiler}
                 />
-              ))
-            }
+              ))}
+            {activeTab === 'upcoming' && !upcomingLoading && upcomingMatches24h.length > 5 && (
+              <div className="flex justify-center my-4">
+                <button
+                  className={`
+                    transition-all duration-150
+                    px-4 py-1.5
+                    bg-gradient-to-r from-blue-500 to-indigo-600
+                    text-white shadow-lg
+                    rounded-full
+                    font-medium tracking-wide
+                    hover:from-indigo-600 hover:to-blue-500
+                    hover:scale-105
+                    focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50
+                    text-sm
+                  `}
+                  onClick={() => setShowAllUpcoming(v => !v)}
+                >
+                  {showAllUpcoming ? (
+                    <>
+                      <span className="inline-block align-middle mr-2">▲</span>Afficher moins
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-block align-middle mr-2">▼</span>Afficher plus ({upcomingMatches24h.length - 5})
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
             
             {activeTab === 'recent' && !recentLoading && recentMatches.length > 0 && recentMatches
               // Harmonisation Matches : filtrer les doublons récents (mêmes équipes, même jour, même tournoi, même BO)
@@ -356,7 +426,7 @@ export default function Home() {
               </div>
             )}
             
-            {activeTab === 'upcoming' && upcomingMatches.length === 0 && !upcomingLoading && (
+            {activeTab === 'upcoming' && upcomingMatches24h.length === 0 && !upcomingLoading && (
               <div className="text-center py-8 text-gray-400">
                 <p>Aucun match à venir</p>
               </div>

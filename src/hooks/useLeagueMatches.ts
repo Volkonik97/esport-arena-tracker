@@ -22,7 +22,7 @@ interface MatchesQueryResult {
 }
 
 export function useUpcomingMatches(
-  limit = 50, 
+  limit = 5000, 
   options: { 
     tournamentFilter?: string;
     dateFrom?: Date;
@@ -37,239 +37,69 @@ export function useUpcomingMatches(
       try {
         console.log("Fetching upcoming matches with filters:", { tournamentFilter, dateFrom, dateTo });
         
-        // Simuler les données de l'API Leaguepedia
-        const mockApiData = {
-          cargoquery: [
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 05:00:00",
-                "Team1": "Blood (Chinese Team)",
-                "Team2": "GaoziGaming",
-                "Tournament": "LPL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 1,
-                "Team2Score": 2
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 06:00:00",
-                "Team1": "Dplus KIA",
-                "Team2": "DRX",
-                "Tournament": "LCK 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 2,
-                "Team2Score": 2
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 07:00:00",
-                "Team1": "All I Want",
-                "Team2": "Happy Game (LGC Team)",
-                "Tournament": "LDL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 0,
-                "Team2Score": 1
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 07:00:00",
-                "Team1": "LNG Esports",
-                "Team2": "Ultra Prime",
-                "Tournament": "LPL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 1,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 08:00:00",
-                "Team1": "KT Rolster",
-                "Team2": "DN Freecs",
-                "Tournament": "LCK 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 0,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 09:00:00",
-                "Team1": "Bilibili Gaming",
-                "Team2": "Top Esports",
-                "Tournament": "LPL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 1,
-                "Team2Score": 1
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 09:30:00",
-                "Team1": "DetonatioN FocusMe",
-                "Team2": "Chiefs Esports Club",
-                "Tournament": "LJL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 0,
-                "Team2Score": 1
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 11:00:00",
-                "Team1": "FunPlus Phoenix",
-                "Team2": "Ninjas in Pyjamas.CN",
-                "Tournament": "LPL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 1,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 15:00:00",
-                "Team1": "Team Heretics",
-                "Team2": "Team Vitality",
-                "Tournament": "LEC 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 0,
-                "Team2Score": 1
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 17:00:00",
-                "Team1": "G2 Esports",
-                "Team2": "Team BDS",
-                "Tournament": "LEC 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 1,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 21:00:00",
-                "Team1": "Cloud9",
-                "Team2": "FlyQuest",
-                "Tournament": "LCS 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 1,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 22:00:00",
-                "Team1": "Team Liquid",
-                "Team2": "Shopify Rebellion",
-                "Tournament": "LCS 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 0,
-                "Team2Score": 1
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-20 23:00:00",
-                "Team1": "Disguised",
-                "Team2": "Dignitas",
-                "Tournament": "LCS 2025 Spring",
-                "BestOf": "5",
-                "Team1Score": 0,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-21 07:00:00",
-                "Team1": "Hanwha Life Esports Challengers",
-                "Team2": "BNK FEARX Youth",
-                "Tournament": "LCK CL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 1,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-21 09:00:00",
-                "Team1": "JD Gaming",
-                "Team2": "Weibo Gaming",
-                "Tournament": "LPL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 1,
-                "Team2Score": 0
-              }
-            },
-            {
-              title: {
-                "DateTime UTC": "2025-04-21 11:00:00",
-                "Team1": "Team WE",
-                "Team2": "Invictus Gaming",
-                "Tournament": "LPL 2025 Spring",
-                "BestOf": "3",
-                "Team1Score": 0,
-                "Team2Score": 1
-              }
-            }
-          ]
-        };
-        
-        console.log("Using mock API data based on real Leaguepedia format");
-        
-        // Transformer les données pour correspondre au format attendu
-        const matches = mockApiData.cargoquery.map(item => {
-          const title = item.title;
-          return {
-            DateTime: title["DateTime UTC"],
-            Team1: title.Team1,
-            Team2: title.Team2,
-            Tournament: title.Tournament || "",
-            BestOf: title.BestOf ? parseInt(title.BestOf) : undefined,
-            Team1Score: title.Team1Score !== undefined ? Number(title.Team1Score) : undefined,
-            Team2Score: title.Team2Score !== undefined ? Number(title.Team2Score) : undefined
-          } as LeagueMatch;
-        });
-        
-        console.log("Mock API returned upcoming matches:", matches.length);
-        
-        // Filtrer les matchs en fonction des critères
-        let filteredMatches = [...matches];
-        
-        // Appliquer le filtre de date de début si spécifié
-        if (dateFrom) {
-          const dateFromTime = dateFrom.getTime();
-          filteredMatches = filteredMatches.filter(match => {
-            const matchDate = new Date(match.DateTime);
-            return matchDate.getTime() >= dateFromTime;
-          });
+        // Nouvelle stratégie : récupérer tous les matchs à venir sans filtre OverviewPage
+        let matches = [];
+        const pageSize = 500;
+        const maxPages = Math.ceil(limit / pageSize); // Calcul dynamique selon la limite demandée
+        let offset = 0;
+        for (let page = 0; page < maxPages; page++) {
+          // Construction du filtre WHERE
+          let whereClauses = [`MatchSchedule.DateTime_UTC >= '${new Date().toISOString().slice(0, 19).replace('T', ' ')}'`];
+          if (tournamentFilter && tournamentFilter !== "Tous") {
+            // Si un filtre tournoi est fourni, on tente de matcher exactement l'OverviewPage (plus robuste)
+            whereClauses.push(`MatchSchedule.OverviewPage = '${tournamentFilter.replace(/'/g, "''")}'`);
+          }
+          let where = whereClauses.join(' AND ');
+          let apiUrl = 'https://lol.fandom.com/api.php?action=cargoquery&tables=MatchSchedule&fields=MatchSchedule.DateTime_UTC,MatchSchedule.Team1,MatchSchedule.Team2,MatchSchedule.Team1Score,MatchSchedule.Team2Score,MatchSchedule.OverviewPage&where=' + encodeURIComponent(where) + `&limit=${pageSize}&offset=${offset}&format=json&origin=*`;
+          let response = await fetch(apiUrl);
+          let apiData = await response.json();
+          let pageMatches = [];
+          if (apiData?.cargoquery && Array.isArray(apiData.cargoquery)) {
+            pageMatches = apiData.cargoquery
+              .map((item) => {
+                const m = item.title;
+                return {
+                  DateTime: m["DateTime UTC"] || m["DateTime_UTC"] || m["MatchSchedule.DateTime_UTC"],
+                  Team1: m.Team1,
+                  Team2: m.Team2,
+                  Team1Score: m.Team1Score,
+                  Team2Score: m.Team2Score,
+                  Tournament: m.OverviewPage
+                };
+              })
+              .filter(match => {
+                if (!match.DateTime) return false;
+                const matchDate = new Date(match.DateTime);
+                return matchDate.getTime() > new Date().getTime();
+              });
+            matches = matches.concat(pageMatches);
+            console.log(`[DEBUG PAGE ${page}]`, {
+              count: pageMatches.length,
+              first: pageMatches[0]?.DateTime,
+              last: pageMatches[pageMatches.length-1]?.DateTime
+            });
+            if (pageMatches.length < pageSize) break; // Dernière page
+          } else {
+            break;
+          }
+          offset += pageSize;
         }
-        
-        // Appliquer le filtre de date de fin si spécifié
-        if (dateTo) {
-          const dateToTime = new Date(dateTo);
-          dateToTime.setHours(23, 59, 59, 999); // Fin de la journée
-          const dateToTimeMs = dateToTime.getTime();
-          filteredMatches = filteredMatches.filter(match => {
-            const matchDate = new Date(match.DateTime);
-            return matchDate.getTime() <= dateToTimeMs;
-          });
+        // Filtrage automatique des matchs à venir par similarité avec le nom de la compétition (comme pour les résultats récents)
+        function similarTournament(a: string, b: string) {
+          if (!a || !b) return false;
+          const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+          const wordsA = new Set(norm(a).split(/\s+/).filter(Boolean));
+          const wordsB = new Set(norm(b).split(/\s+/).filter(Boolean));
+          let common = 0;
+          wordsA.forEach(w => { if (wordsB.has(w)) common++; });
+          // Si tous les mots du filtre sont dans le Tournament, ou l'inverse, on considère que c'est un match
+          return (common >= Math.min(wordsA.size, wordsB.size) && common > 0);
         }
-        
-        // Appliquer le filtre de tournoi si spécifié
         if (tournamentFilter && tournamentFilter !== "Tous") {
-          filteredMatches = filteredMatches.filter(match => 
-            match.Tournament === tournamentFilter
-          );
+          matches = matches.filter(m => similarTournament(m.Tournament || '', tournamentFilter));
         }
-        
-        console.log("Filtered matches:", filteredMatches.length);
-        
-        return { matches: filteredMatches, isFallback: false };
+        console.log('[DEBUG FILTERED MATCHES FINAL]', matches);
+        return { matches, isFallback: false };
       } catch (error) {
         console.error('Error in useUpcomingMatches:', error);
         toast({
@@ -479,7 +309,7 @@ export function useFilteredMatches(
                 fields: "MSG.Team1,MSG.Team2,MS.OverviewPage,MS.DateTime_UTC=DateTime,MS.Tournament,MS.BestOf",
                 where: "MS.DateTime_UTC>NOW()" + (dateFrom ? ` AND MS.DateTime_UTC >= '${dateFrom.toISOString()}'` : "") + 
                       (dateTo ? ` AND MS.DateTime_UTC <= '${dateTo.toISOString()}'` : "") +
-                      (tournamentFilter && tournamentFilter !== "Tous" ? ` AND MS.Tournament = '${tournamentFilter}'` : ""),
+                      (tournamentFilter && tournamentFilter !== "Tous" ? ` AND MS.OverviewPage = '${tournamentFilter.replace(/'/g, "''")}'` : ""),
                 order_by: "MS.DateTime_UTC",
                 limit: limit.toString()
               }
@@ -491,13 +321,29 @@ export function useFilteredMatches(
             throw error;
           }
           
+          console.log('[DEBUG API RAW]', data);
           if (data?.cargoquery && Array.isArray(data.cargoquery)) {
-            const matches = data.cargoquery.map(item => item.title as LeagueMatch);
-            console.log("API returned upcoming matches:", matches.length);
-            
-            if (matches.length > 0) {
-              return { matches, isFallback: false };
-            }
+            console.log('[DEBUG ALL MATCHES RAW]', data.cargoquery);
+            const matches = data.cargoquery
+              .map((item) => {
+                const m = item.title;
+                return {
+                  DateTime: m["DateTime UTC"],
+                  Team1: m.Team1,
+                  Team2: m.Team2,
+                  Team1Score: m.Team1Score,
+                  Team2Score: m.Team2Score,
+                  Tournament: m.OverviewPage
+                };
+              })
+              .filter(match => {
+                if (!match.DateTime) return false;
+                const matchDate = new Date(match.DateTime);
+                console.log('[DEBUG COMPARE]', { matchDate: matchDate.toISOString(), now: new Date().toISOString(), raw: match.DateTime });
+                return matchDate.getTime() > new Date().getTime();
+              });
+            console.log('[DEBUG FILTERED MATCHES]', matches);
+            return { matches, isFallback: false };
           }
           
           return await fetchCurrentMatchesAlternative(limit, tournamentFilter);

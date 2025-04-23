@@ -59,11 +59,16 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
         day: '2-digit',
         month: 'short',
       });
-      formattedTime = matchDate.toLocaleTimeString([], {
+      formattedTime = matchDate.toLocaleTimeString('fr-FR', {
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false
       });
+    } else {
+      console.warn('[MatchCard] DateTime non valide:', date);
     }
+  } else {
+    console.warn('[MatchCard] DateTime manquant:', date);
   }
   
   // Determine if score should be shown
@@ -105,6 +110,10 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
   return (
     <Link to={link || `/matches/${id}`} className="block">
       <div className="esport-card p-4 hover:border-esport-600 transition-all">
+        <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+          <CalendarClock className="h-4 w-4" />
+          <span>{formattedDate} - {formattedTime}</span>
+        </div>
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             {status === 'live' && (
@@ -113,27 +122,12 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
                 En direct
               </span>
             )}
-            {status === 'upcoming' && formattedDate && formattedTime && (
-              <span className="text-gray-400 text-sm flex items-center gap-1">
-                <CalendarClock className="h-4 w-4" />
-                {formattedDate} - {formattedTime}
-              </span>
-            )}
-            {status === 'live' && formattedDate && formattedTime && (
-              <span className="text-red-400 text-sm flex items-center gap-1">
-                <CalendarClock className="h-4 w-4" />
-                {formattedDate} - {formattedTime}
-              </span>
-            )}
-            {status === 'finished' && formattedDate && (
+            {/* On n'affiche plus la date ici pour éviter le doublon, car elle est déjà affichée en haut de la carte */}
+            {status === 'finished' && (
               <span className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-900/70 text-xs text-green-400 font-semibold border border-green-900 uppercase tracking-wide">
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" className="inline mr-1"><circle cx="10" cy="10" r="10" fill="#22c55e"/><path d="M6 10.5l2.5 2.5 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Terminé
-                </span>
-                <span className="text-gray-400 text-sm flex items-center gap-1">
-                  <CalendarClock className="h-4 w-4" />
-                  {formattedDate}
                 </span>
               </span>
             )}
@@ -143,78 +137,72 @@ export function MatchCard({ id, teams, competition, date, status, link, spoiler 
           </div>
         </div>
         
-        <div className="flex items-center justify-between gap-4">
+        {/* Ligne principale : logos, noms, vs */}
+        <div className="flex flex-row items-center justify-between gap-6 px-2 py-2">
           {/* Team 1 */}
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded bg-dark-700 flex items-center justify-center overflow-hidden">
-                {isLoading1 ? (
-                  <Skeleton className="w-full h-full" />
-                ) : (
-                  <img 
-                    src={getTeamLogo(0)} 
-                    alt={teams[0].name}
-                    className="w-10 h-10 object-contain"
-                    onError={(e) => {
-                      console.error(`Failed to load logo for ${teams[0].name}`);
-                      setTeam1LogoError(true);
-                    }}
-                    loading="lazy"
-                    crossOrigin="anonymous"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-              </div>
-              <div className="font-medium">{teams[0].name}</div>
-            </div>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {isLoading1 ? (
+              <Skeleton className="h-10 w-10 rounded bg-dark-700" />
+            ) : (
+              <img
+                src={getTeamLogo(0)}
+                alt={teams[0].name}
+                className="h-10 w-10 object-contain rounded bg-dark-700"
+                onError={() => setTeam1LogoError(true)}
+                loading="lazy"
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+              />
+            )}
+            <span className="font-bold text-white text-base truncate">
+              {teams[0].name}
+            </span>
           </div>
-          
-          {/* Score */}
+
+          {/* VS central, bien mis en valeur */}
+          {teams[0].name && teams[1].name && (
+            <span className="text-esport-400 font-bold text-lg mx-2 select-none">vs</span>
+          )}
+
+          {/* Team 2 */}
+          <div className="flex items-center gap-3 min-w-0 flex-1 justify-end">
+            <span className="font-bold text-white text-base truncate text-right">
+              {teams[1].name}
+            </span>
+            {isLoading2 ? (
+              <Skeleton className="h-10 w-10 rounded bg-dark-700" />
+            ) : (
+              <img
+                src={getTeamLogo(1)}
+                alt={teams[1].name}
+                className="h-10 w-10 object-contain rounded bg-dark-700"
+                onError={() => setTeam2LogoError(true)}
+                loading="lazy"
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Score : affiché uniquement si showScore est vrai (match terminé ou live) */}
+        {showScore && (
           <div className={cn(
-            "flex items-center gap-2 font-bold text-xl min-w-[80px] justify-center",
+            "flex items-center justify-center gap-2 font-bold text-xl min-w-[80px] py-1",
             status === 'live' && "text-red-400",
             status === 'finished' && "text-gray-300"
           )}>
-            {showScore ? (
-              hideScore ? (
-                <span className="italic text-gray-500">Spoiler</span>
-              ) : (
-                <>
-                  <span>{teams[0].score}</span>
-                  <span className="text-gray-600">:</span>
-                  <span>{teams[1].score}</span>
-                </>
-              )
+            {hideScore ? (
+              <span className="italic text-gray-500">Spoiler</span>
             ) : (
-              <span className="text-sm font-medium text-gray-600">VS</span>
+              <>
+                <span>{teams[0].score}</span>
+                <span className="text-gray-600">:</span>
+                <span>{teams[1].score}</span>
+              </>
             )}
           </div>
-          
-          {/* Team 2 */}
-          <div className="flex-1">
-            <div className="flex items-center gap-3 justify-end">
-              <div className="font-medium order-1">{teams[1].name}</div>
-              <div className="w-12 h-12 rounded bg-dark-700 flex items-center justify-center overflow-hidden order-2">
-                {isLoading2 ? (
-                  <Skeleton className="w-full h-full" />
-                ) : (
-                  <img 
-                    src={getTeamLogo(1)} 
-                    alt={teams[1].name}
-                    className="w-10 h-10 object-contain"
-                    onError={(e) => {
-                      console.error(`Failed to load logo for ${teams[1].name}`);
-                      setTeam2LogoError(true);
-                    }}
-                    loading="lazy"
-                    crossOrigin="anonymous"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </Link>
   );
