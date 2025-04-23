@@ -123,11 +123,12 @@ export default function Home() {
       if (isNaN(matchDate.getTime())) return false;
       
       const now = new Date();
-      // Calculate duration in milliseconds using safe numeric conversion
-      const durationMs = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
-      // Ensure we're dealing with numeric values for the date calculation
-      const matchEndTime = matchDate.getTime() + durationMs;
-      const matchEnd = new Date(matchEndTime);
+      
+      // Ensure we're dealing with numeric values
+      const matchDateMs: number = matchDate.getTime();
+      const durationMs: number = Number(MATCH_DURATION_MINUTES) * 60 * 1000;
+      const matchEndMs: number = matchDateMs + durationMs;
+      const matchEnd = new Date(matchEndMs);
       
       return now >= matchDate && now <= matchEnd;
     } catch (error) {
